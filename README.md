@@ -18,8 +18,8 @@
 Halt?는 뒤 조각을 연습하는 게임입니다. 반복문 18개가 끝나는지 하나씩 판정하고, 끝난다면 남은 계단 수(반복이 앞으로 몇 번
 남았는지 세는 식)로, 안 끝난다면 영원히 도는 시작값으로 증명합니다. 증명은 Z3가 검사합니다. 끝나는지 아무도 모르는 반복문도 하나 있습니다.
 
-KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나온 학생 게임 Invariant Frog와 Art of Artillery: Danger Close는
-루프 불변식으로 *부분 정확성*을 증명하고, 두 게임 모두 **종료**와 변수 3개 이상은 다루지 못한다고 밝힙니다. Halt?는 그 두 가지를 다룹니다.
+KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나온 학생 게임 Art of Artillery: Danger Close는
+루프 불변식으로 *부분 정확성*을 증명하고, **종료**와 변수 3개 이상은 다루지 못한다고 밝힙니다. Halt?는 그 두 가지를 다룹니다.
 판정은 브라우저 안에서 돌아가는 SMT 풀이기 **Z3**가 합니다.
 
 ### 하는 법
@@ -146,8 +146,8 @@ npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤
 - [Z3](https://github.com/Z3Prover/z3) (Microsoft Research, MIT)와 npm 패키지 `z3-solver`
 - [coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker) (Guido Zuidhof, MIT)
 - [three.js](https://github.com/mrdoob/three.js) (MIT), [Pretendard](https://github.com/orioncactus/pretendard) (길형진, SIL OFL 1.1)
-- 보드와 비유에 관한 고민의 출발점이 된 두 게임: [Invariant Frog](https://github.com/suhdonghwi/jammy) (suhdonghwi),
-  [Art of Artillery: Danger Close](https://github.com/shha-03/art-of-artillery-danger-close) (shha-03). 코드는 가져오지 않았습니다.
+- 보드와 비유에 관한 고민의 출발점이 된 게임: [Art of Artillery: Danger Close](https://github.com/shha-03/art-of-artillery-danger-close)
+  (shha-03). 코드는 가져오지 않았습니다.
 - KAIST CS424 프로그램 논증
 - 작성자의 설계에 따라 Claude의 도움을 받아 만들었습니다.
 
@@ -166,9 +166,9 @@ and 'it does end' (termination). Halt? is a game for practising the second piece
 If it does, prove it by writing the steps left (an expression that counts how many more times the loop will run); if it does
 not, prove it with a start that runs forever. Z3 checks every proof. And one loop is in here that nobody knows the answer to.
 
-It is made for students of KAIST CS424 (Program Reasoning). The earlier student games Invariant Frog and Art of Artillery:
-Danger Close prove *partial correctness* with loop invariants, and both say they cannot handle **termination** or more than two
-or three variables. Halt? handles both. The judge is the **Z3** SMT solver, running in your browser.
+It is made for students of KAIST CS424 (Program Reasoning). The earlier student game Art of Artillery: Danger Close proves
+*partial correctness* with loop invariants, and says it cannot handle **termination** or more than two or three variables.
+Halt? handles both. The judge is the **Z3** SMT solver, running in your browser.
 
 ### How to play
 
@@ -304,8 +304,8 @@ The game is served by [Vercel](https://vercel.com): a push to `main` builds and 
 - [Z3](https://github.com/Z3Prover/z3) (Microsoft Research, MIT) and the `z3-solver` npm package
 - [coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker) (Guido Zuidhof, MIT)
 - [three.js](https://github.com/mrdoob/three.js) (MIT), [Pretendard](https://github.com/orioncactus/pretendard) (Kil Hyung-jin, SIL OFL 1.1)
-- The two earlier games whose boards and metaphors started this discussion: [Invariant Frog](https://github.com/suhdonghwi/jammy) (suhdonghwi)
-  and [Art of Artillery: Danger Close](https://github.com/shha-03/art-of-artillery-danger-close) (shha-03). No code was copied.
+- The earlier game whose board and metaphor started this discussion: [Art of Artillery: Danger Close](https://github.com/shha-03/art-of-artillery-danger-close)
+  (shha-03). No code was copied.
 - KAIST CS424 Program Reasoning
 - Built with Claude's help under the author's design.
 
