@@ -27,15 +27,22 @@ export interface CheckResult {
 }
 
 export const Z3_TIMEOUT_MS = 5000;
+/** Extra wall-clock time before a check that never returns counts as undecided. */
+export const WATCHDOG_EXTRA_MS = 10000;
+
+/** Runs one solver check; the browser wraps it to hold back Z3 dec_refs (see src/z3/guard.ts). */
+export type CheckRunner = <T>(run: () => Promise<T>) => Promise<T>;
 
 export class Judge {
   ctx: Ctx;
   timeoutMs: number;
+  private runCheck: CheckRunner;
   private chain: Promise<unknown> = Promise.resolve();
 
-  constructor(ctx: Ctx, timeoutMs = Z3_TIMEOUT_MS) {
+  constructor(ctx: Ctx, timeoutMs = Z3_TIMEOUT_MS, runCheck: CheckRunner = (run) => run()) {
     this.ctx = ctx;
     this.timeoutMs = timeoutMs;
+    this.runCheck = runCheck;
   }
 
   // ------------------------------------------------------------ translation
@@ -176,6 +183,15 @@ export class Judge {
     return s;
   }
 
+  /** Z3's own timeout should end every check; if a check never returns, give up on it anyway. */
+  private withWatchdog<T>(check: Promise<T>): Promise<T | 'stuck'> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stuck = new Promise<'stuck'>((resolve) => {
+      timer = setTimeout(() => resolve('stuck'), this.timeoutMs + WATCHDOG_EXTRA_MS);
+    });
+    return Promise.race([check, stuck]).finally(() => clearTimeout(timer));
+  }
+
   /** Is the conjunction satisfiable? unsat = the check passes; a model = a counterexample. */
   private async refute(id: CheckId, constraints: ZBool[], pre: Env, post?: Env): Promise<CheckResult> {
     return this.serial(async () => {
@@ -183,7 +199,8 @@ export class Judge {
         const solver = new this.ctx.Solver();
         solver.set('timeout', this.timeoutMs);
         for (const c of constraints) solver.add(c);
-        const r = await solver.check();
+        const r = await this.withWatchdog(this.runCheck(() => solver.check()));
+        if (r === 'stuck') return { id, status: 'unknown' as const, reason: 'no answer from Z3' };
         if (r === 'unsat') return { id, status: 'pass' as const };
         if (r === 'unknown') return { id, status: 'unknown' as const, reason: solver.reasonUnknown() };
         const model = solver.model();

@@ -1,10 +1,11 @@
 // Copies the runtime assets that must be served as plain files (not bundled) into public/:
 //  - Z3's Emscripten loader and wasm: its thread workers re-load z3-built.js by URL.
 //    The wasm is also stored gzipped (35 MB -> 8 MB) and decompressed in the browser.
+//    They go to public/z3/<version>/ so Vercel can serve them as immutable (see vercel.json).
 //  - coi-serviceworker, which makes the page cross-origin isolated on GitHub Pages.
 //  - Pretendard (SIL OFL 1.1), the official unmodified variable-weight woff2 subsets split by unicode-range,
 //    so a browser downloads only the pieces for the characters on screen. Its license goes next to it.
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -19,7 +20,9 @@ if (z3Version !== '5.3.1') throw new Error(`z3-solver must be 5.3.1, found ${z3V
 if (coiVersion !== '0.1.7') throw new Error(`coi-serviceworker must be 0.1.7, found ${coiVersion}`);
 if (fontVersion !== '1.3.9') throw new Error(`pretendard must be 1.3.9, found ${fontVersion}`);
 
-const out = join(root, 'public', 'z3');
+const z3Dir = join(root, 'public', 'z3');
+if (existsSync(z3Dir)) for (const old of readdirSync(z3Dir)) if (old !== z3Version) rmSync(join(z3Dir, old), { recursive: true, force: true });
+const out = join(z3Dir, z3Version);
 mkdirSync(out, { recursive: true });
 copyFileSync(join(z3Build, 'z3-built.js'), join(out, 'z3-built.js'));
 copyFileSync(join(z3Build, 'z3-built.wasm'), join(out, 'z3-built.wasm'));

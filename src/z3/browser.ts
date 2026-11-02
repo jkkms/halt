@@ -5,10 +5,13 @@
 // (the first visit registers the worker and reloads once).
 //
 // z3-built.js is an Emscripten loader that must be a classic <script> served by URL (its worker
-// threads load it again by URL), so it lives in public/z3/ and is not bundled.
+// threads load it again by URL), so it lives in public/z3/<version>/ and is not bundled.
+// The versioned folder is served as immutable (vercel.json): Safari must not revalidate it, because
+// Vercel's 304 answers drop the COEP header and Safari then refuses to start Z3's worker threads.
 
 import type { Context } from 'z3-solver';
 import { Judge } from '../core/judge.ts';
+import { guardDecRefs, whileSolving } from './guard.ts';
 
 export type Z3Status =
   | { state: 'waiting' } // waiting for cross-origin isolation (service worker)
@@ -17,7 +20,8 @@ export type Z3Status =
   | { state: 'error'; reason: 'isolation' | 'download' | 'init'; message: string };
 
 const ISOLATION_WAIT_MS = 8000;
-const asset = (name: string) => new URL(`z3/${name}`, document.baseURI).href;
+const Z3_VERSION = '5.3.1'; // pinned in package.json and scripts/copy-assets.mjs
+const asset = (name: string) => new URL(`z3/${Z3_VERSION}/${name}`, document.baseURI).href;
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -102,8 +106,9 @@ export function loadJudge(onStatus: (s: Z3Status) => void): Promise<Judge> {
         mainScriptUrlOrBlob: asset('z3-built.js'),
         ...(wasmBinary ? { wasmBinary } : {}),
       });
+      guardDecRefs(api.Z3);
       const ctx = api.Context('main') as Context<'main'>;
-      const judge = new Judge(ctx);
+      const judge = new Judge(ctx, undefined, whileSolving);
       onStatus({ state: 'ready' });
       return judge;
     } catch (err) {
