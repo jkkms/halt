@@ -1,4 +1,4 @@
-// The tutorial (8 pages, one flow) and the two short intros before levels 9 and 10.
+// The tutorial (8 pages, one flow) and the two short intros before level 7 (railing) and level 10 (floors).
 // Plain data plus a pure scene builder, so every page is checked by `npm test` (the runs it shows really
 // do what the narration says). Every program shown here is a tutorial-only program (TUTORIAL_PROGRAMS),
 // never a level. Texts are the spec's (SPEC_v0.3 §3, §4) word for word; **bold** and `code` are markup.
@@ -145,10 +145,13 @@ export const TUTORIAL: TutPage[] = [
 const R: TutorialKey = 'railing';
 const F: TutorialKey = 'floors';
 
-/** The short intros (SPEC_v0.3 §4), shown the first time level 9 / level 10 is opened. */
+/**
+ * The short intros (SPEC_v0.3 §4), shown the first time level 7 / level 10 is opened. The railing intro comes
+ * before level 7, the first level whose proof needs a railing (SPEC_v0.4 §G).
+ */
 export const INTROS: Record<number, Intro> = {
-  9: {
-    level: 9,
+  7: {
+    level: 7,
     title: { ko: '난간', en: 'Railing' },
     pages: [
       {
@@ -212,7 +215,7 @@ export const INTROS: Record<number, Intro> = {
 };
 
 /** Levels with an intro of their own. */
-export const INTRO_LEVELS = [9, 10];
+export const INTRO_LEVELS = [7, 10];
 
 export function introFor(level: number): Intro | null {
   return INTROS[level] ?? null;

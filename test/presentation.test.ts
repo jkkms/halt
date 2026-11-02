@@ -1,10 +1,11 @@
 // Presentation logic: stairs and beats on the stage, zero-step samples, level groups, strings, the tutorial (v0.3).
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { evalBool, parseRaw } from '../src/core/expr.ts';
-import { parseV } from '../src/core/game.ts';
+import { parseV, railingAllowed } from '../src/core/game.ts';
 import { CAMPAIGN, codePreview, GROUPS, helpFor, recommendedNext } from '../src/core/groups.ts';
-import { LEVELS, levelById, TUTORIAL_PROGRAMS, type TutorialKey } from '../src/core/levels.ts';
+import { LEVELS, levelById, RAILING_FROM, TUPLES_FROM, TUTORIAL_PROGRAMS, type TutorialKey } from '../src/core/levels.ts';
 import { guardHolds, initialState, sampleInputs, step } from '../src/core/sim.ts';
 import { allowsZeroSteps, beats, guardCheck, guardText, runScene, sampleScene, stairsWithV, walk, zeroStepSample, zeroSteps, type StageScene } from '../src/core/stage.ts';
 import { tables } from '../src/ui/i18n.ts';
@@ -103,6 +104,36 @@ describe('strings', () => {
     const pages = [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
     const naming = pages.filter((p) => /ranking function/.test(p.text.ko) || /ranking function/.test(p.text.en));
     assert.deepEqual(naming, [TUTORIAL[4]]);
+  });
+
+  it('Safari: index.html turns COEP credentialless off before coi-serviceworker runs, and loads nothing from elsewhere', () => {
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const cfg = html.indexOf('window.coi = { coepCredentialless: () => false }');
+    const coi = html.indexOf('<script src="./coi-serviceworker.js">');
+    assert.ok(cfg > 0 && coi > cfg, 'the coi config comes first');
+    assert.ok(!/(src|href)="(https?:)?\/\//.test(html), 'no cross-origin script, style or font');
+  });
+
+  it('the judge never fails silently: plain reasons and a retry in both languages (v0.4)', () => {
+    const { en, ko } = tables();
+    for (const table of [en, ko]) {
+      for (const k of ['judgeErrIsolation', 'judgeErrDownload', 'judgeErrInit', 'judgeErrTitle', 'retry2', 'judgePreparing', 'judgePreparingPct'] as const) assert.ok(table[k].trim(), k);
+      assert.ok(table.judgePreparingPct.includes('{pct}%'));
+    }
+    assert.ok(!ko.judgeError.includes('쓸 수 없음') && !/unavailable/i.test(en.judgeError));
+    assert.equal(ko.retry2, '다시 시도');
+    assert.equal(ko.judgePreparingPct.replace('{pct}', '42'), '판정기 준비 중… 42%');
+  });
+
+  it('v0.4 words: the graph, the last check, the collapsed step 1, the mute toggle', () => {
+    const { en, ko } = tables();
+    assert.equal(ko.graph, '예시 실행 한눈에 보기');
+    assert.equal(en.graph, 'All sample runs at a glance');
+    assert.equal(`4 < 4 ${ko.stExitCheck}`, '4 < 4 거짓 → 반복 끝, 출구로');
+    assert.equal(`4 < 4 ${en.stExitCheck}`, '4 < 4 false → loop ends, to the exit');
+    assert.equal(`${ko.verdictChosen}: ${ko.verdictEnds} · ${ko.changeVerdict}`, '1단계 판정: 끝난다 · 바꾸기');
+    assert.equal(ko.facts, '알려진 사실');
+    assert.ok(ko.muteLabel && en.muteLabel);
   });
 
   it('the counterexample for a flat step reads like the spec', () => {
@@ -235,16 +266,25 @@ describe('level groups', () => {
     assert.equal(recommendedNext(Object.fromEntries(CAMPAIGN.map((id) => [id, 1]))), null);
   });
 
-  it('the “?” of levels 9 and 10 opens their intro; the others get the same help per range (no verdict leaks)', () => {
-    assert.deepEqual(helpFor(9), { k: 'intro', level: 9 });
+  it('the “?” of levels 7 and 10 opens their intro; the others get the same help per range (no verdict leaks)', () => {
+    assert.deepEqual(helpFor(7), { k: 'intro', level: 7 });
     assert.deepEqual(helpFor(10), { k: 'intro', level: 10 });
     for (const l of LEVELS) {
       const help = helpFor(l.id);
-      if (l.id < 9) assert.deepEqual(help, { k: 'tutorial' }, `level ${l.id}`);
-      if (l.id > 10) assert.deepEqual(help, { k: 'menu' }, `level ${l.id}`);
+      if (l.id < 7) assert.deepEqual(help, { k: 'tutorial' }, `level ${l.id}`);
+      else if (l.id !== 7 && l.id !== 10) assert.deepEqual(help, { k: 'menu' }, `level ${l.id}`);
     }
-    assert.deepEqual(INTRO_LEVELS, [9, 10]);
-    assert.deepEqual(Object.keys(INTROS).map(Number), [9, 10]);
+    // the menu levels mix levels that end and levels that never end
+    const menuKinds = new Set(LEVELS.filter((l) => helpFor(l.id).k === 'menu').map((l) => l.kind));
+    assert.ok(menuKinds.has('ends') && menuKinds.has('never'));
+    assert.deepEqual(INTRO_LEVELS, [7, 10]);
+    assert.deepEqual(Object.keys(INTROS).map(Number), [7, 10]);
+  });
+
+  it('the railing unlocks at level 7, the first level whose proof needs one; tuples at level 10', () => {
+    assert.equal(RAILING_FROM, 7);
+    assert.equal(TUPLES_FROM, 10);
+    assert.ok(!railingAllowed(levelById(6)) && railingAllowed(levelById(7)));
   });
 
   it('code previews show the loop head and never the verdict', () => {
@@ -284,7 +324,7 @@ describe('tutorial (v0.3: 8 pages, one flow)', () => {
     assert.ok(TUTORIAL[5]!.text.ko.includes('x = 2면 2, −1, 2, −1, … 같은 자리를 맴돌아요.'));
     assert.equal(TUTORIAL[7]!.text.ko, '이제 레벨 1에서 직접 해 봐요!');
     assert.equal(TUTORIAL[7]!.text.en, 'Now try level 1 yourself!');
-    assert.ok(INTROS[9]!.pages[1]!.text.ko.includes('**난간** `k >= 0`'));
+    assert.ok(INTROS[7]!.pages[1]!.text.ko.includes('**난간** `k >= 0`'));
     assert.ok(INTROS[10]!.pages[1]!.text.en.includes('`(f, s)`'));
   });
 
@@ -393,7 +433,7 @@ describe('tutorial (v0.3: 8 pages, one flow)', () => {
   });
 
   it('railing intro: k = −5 falls into the basement; the railing k >= 0 holds on the real run and leaves k = −5 out', () => {
-    const [p1, p2] = INTROS[9]!.pages;
+    const [p1, p2] = INTROS[7]!.pages;
     const real = stairsOf(tutScene(p1!.shots[0]!.scene));
     assert.deepEqual(
       real.stairs.map((s) => s.s.k),

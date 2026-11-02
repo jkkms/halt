@@ -29,17 +29,23 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 - **무대**: 반복문은 건물 앞 계단을 내려가는 사람입니다. 반복을 한 번 돌 때마다 한 칸 내려가고, 반복이 끝나면 출구로 나갑니다.
   걸음마다 **먼저 반복 조건을 확인**하므로, 처음부터 조건이 거짓이면 0걸음 만에 끝납니다(레벨 2에서 n = −3).
 - **1단계 · 판정**: "끝난다"(어떤 시작값에서도 언젠가 출구에 닿는다), "안 끝난다"(영원히 걷게 되는 시작값이 하나라도 있다),
-  "아무도 모른다" 가운데 하나를 고릅니다. 고르기 전에는 2단계가 흐리게 잠겨 있습니다.
+  "아무도 모른다" 가운데 하나를 고릅니다(뜻은 버튼에 마우스를 올리면 보입니다). 고르기 전에는 2단계가 흐리게 잠겨 있고,
+  고른 뒤에는 "1단계 판정: 끝난다 · 바꾸기" 한 줄로 접힙니다.
 - **2단계 · 증명**: "끝난다"를 골랐다면 **남은 계단 수**, 곧 반복이 앞으로 몇 번 남았는지 세는 식을 씁니다. 정확한 횟수가 아니어도
   됩니다. 게임은 예시 실행의 상태마다 그 높이로 계단을 그립니다. 판정기는 두 가지만 봅니다. 한 번 돌 때마다 줄어드는가(안 줄면 계단이
   평평해짐), 걷는 동안 0 밑으로 안 내려가는가(내려가면 지하로 떨어짐). 예시만이 아니라 조건이 참인 모든 상태를 Z3가 검사합니다.
   "안 끝난다"를 골랐다면 영원히 걷는 시작값을 줍니다. 상태가 되풀이되면 그것으로 증명이고, 아니면 바닥 없는 구역 Z를 더 씁니다.
+- **난간(불변식)**: 판정기는 반복 조건이 참인 *모든* 상태를 의심합니다. 실제 실행이 결코 가지 않는 상태를 빼려면 시작할 때 참이고
+  매 걸음 뒤에도 참인 조건, 곧 불변식을 난간 R로 줍니다. 레벨 7, 9, 11, 16은 난간 없이는 증명되지 않습니다.
+- **화면**: 오른쪽 판에서 코드 카드(코드, "입력: …", "알려진 사실: …")가 위에 붙어 있고, 노트북 화면(1280×800 이상)에서는 코드,
+  입력칸, 입력 버튼, 판정 버튼이 스크롤 없이 한 화면에 보입니다. 판정 버튼은 판정기(Z3)가 준비된 뒤에 나타나고, 그 전에는 그 자리에
+  "판정기 준비 중… n%"가 보입니다. 준비에 실패하면 이유와 **[다시 시도]** 버튼이 나옵니다.
 - **입력**: 레벨의 변수, 정수, `+ - * / %`, 괄호, `abs(e)`, `min(e, e)`, `max(e, e)`. 입력칸 아래 버튼을 누르면 바로 들어갑니다.
-  `/`와 `%`는 나머지가 0 이상이 되도록 계산합니다(`-7 / 2 = -4`, `-7 % 2 = 1`). 레벨 9부터 난간 R(조건), 레벨 10부터 튜플 `(a, b)`.
+  `/`와 `%`는 나머지가 0 이상이 되도록 계산합니다(`-7 / 2 = -4`, `-7 % 2 = 1`). 레벨 7부터 난간 R(조건), 레벨 10부터 튜플 `(a, b)`.
 - **튜토리얼**은 게임 화면과 따로 있는 한 줄기 8쪽입니다(환영 · 계단 · 1단계 판정 · 2단계 증명(끝난다) · 평평한 계단과 지하 ·
   2단계 증명(안 끝난다) · 입력 · 레벨 1). 다음/이전, 쪽 번호, 건너뛰기가 있고 마지막 쪽의 버튼으로 레벨 1을 시작합니다.
   튜토리얼을 마치지 않았다면 레벨 1을 처음 열 때 튜토리얼을 권합니다.
-- 레벨 9와 10을 처음 열면 두 쪽짜리 소개(난간, 층과 계단)가 먼저 나옵니다. 그 레벨의 `?`로 다시 볼 수 있습니다.
+- 레벨 7과 10을 처음 열면 두 쪽짜리 소개(난간, 층과 계단)가 먼저 나옵니다. 그 레벨의 `?`로 다시 볼 수 있습니다.
 - 튜토리얼과 소개의 예제는 레벨이 아닌 **튜토리얼 전용 프로그램**이라 레벨의 답을 알려 주지 않습니다. 예외는 연습 레벨인 레벨 1의 `n`뿐입니다.
 
 ![튜토리얼 4쪽: 남은 계단 수 n을 입력하면 계단이 3, 2, 1 높이로 그려진다](docs/screenshot-tutorial.png)
@@ -76,6 +82,10 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 | 반복 조건이 처음부터 거짓 | 걷기 전에 문으로 나감 (0걸음) |
 | 보조 불변식 (supporting invariant) | 난간 R |
 | 재귀 집합 (recurrent set) | 바닥 없는 구역 Z |
+
+**완전 정확성(total correctness) = 불변식(난간) + ranking function(남은 계단 수).** 불변식은 '끝나면 결과가 맞다'를 받치고,
+여기서는 난간이 되어 남은 계단 수를 실제 실행이 오는 상태에서만 검사하게 해 줍니다. 안 끝난다는 증명에 쓰는 바닥 없는 구역 Z도
+귀납적 불변식입니다(시작에서 참이고 한 걸음 뒤에도 참).
 
 ### 검사 (정확히 이것만)
 
@@ -116,7 +126,10 @@ npm run serve:pages  # dist/를 http://localhost:4174/it-ends/ 에서 특별한 
   [licenses/Pretendard-OFL-1.1.txt](licenses/Pretendard-OFL-1.1.txt)와 배포본의 `fonts/LICENSE.txt`에 있습니다.
 - 소리는 파일 없이 WebAudio로 만듭니다(걸음, 착지, 실패, 해결). `prefers-reduced-motion`이면 애니메이션이 짧아집니다.
 - Z3는 SharedArrayBuffer가 필요해서 교차 출처 격리(cross-origin isolation)가 필요합니다. 개발 서버는 헤더를 직접 보내고,
-  GitHub Pages에서는 `coi-serviceworker`가 붙여 줍니다(처음 방문할 때 한 번 새로고침됨).
+  GitHub Pages에서는 `coi-serviceworker`가 붙여 줍니다(처음 방문할 때 한 번 새로고침됨). 이 스크립트는 크롬·파이어폭스가 아닌
+  브라우저에서 COEP `credentialless`를 쓰는데 사파리는 이를 지원하지 않아 판정기가 시작되지 않았습니다. 그래서 `index.html`에서
+  `window.coi = { coepCredentialless: () => false }`로 모든 브라우저에 `require-corp`를 씁니다(모든 파일이 같은 출처라 문제없음).
+  크롬과 Playwright WebKit(사파리 엔진)에서 판정기 준비와 레벨 풀이를 확인했습니다.
 - Z3의 Emscripten 로더와 wasm, 글꼴은 번들하지 않고 `scripts/copy-assets.mjs`가 `public/`에 복사합니다.
   wasm(35 MB)은 gzip(약 8 MB)으로 받아 브라우저에서 풉니다. 불러오는 동안에도 화면은 그대로 쓸 수 있습니다.
 - 진행 상황(최고 별, 튜토리얼을 마쳤는지, 이미 보여 준 소개, 오늘의 문제, 소리 설정)은 `localStorage`에 저장하며, 저장소를 쓸 수 없어도 게임은 돌아갑니다.
@@ -160,19 +173,27 @@ Your goal is to **judge** and **prove** 18 loops, one by one. Every level has tw
   one stair; when the loop ends, they leave by the exit. Before every step the walker **checks the loop condition first**, so a
   start where the condition is already false ends after 0 steps (level 2 with n = −3).
 - **Step 1 · Verdict**: choose "It ends" (from any start the walker reaches the exit), "It never ends" (some start makes them
-  walk forever) or "Nobody knows". Until you choose, step 2 is greyed out.
+  walk forever) or "Nobody knows" (hover a button for its meaning). Until you choose, step 2 is greyed out; after the choice,
+  step 1 folds into one line, "Step 1 verdict: It ends · change".
 - **Step 2 · Proof**: for "It ends", write the **steps left**, an expression that counts how many more times the loop will run.
   It need not be the exact count. The game draws every state of the sample runs as a stair at that height. The judge checks only
   two things: does it go down every time the loop runs (if not, the stairs are flat), and does it stay at 0 or above while walking
   (if not, the walker falls into the basement). Z3 checks every state where the condition holds, not only the samples.
   For "It never ends", give a start that walks forever; a repeated state proves it, otherwise you also mark a bottomless zone Z.
+- **Railings (invariants)**: the judge doubts *every* state where the loop condition holds. To rule out states a real run never
+  reaches, give an invariant as a railing R: a condition true at the start and still true after every step. Levels 7, 9, 11 and 16
+  cannot be proved without one.
+- **The screen**: the code card (code, "Inputs: …", "Known facts: …") sticks to the top of the right panel; on a laptop screen
+  (1280×800 and up) the code, the answer box, the input buttons and the check button are visible together without scrolling.
+  The check button appears once the judge (Z3) is ready; until then "Judge: getting ready… n%" stands in its place, and if it
+  fails you get the reason in plain words and a **[Try again]** button.
 - **What you can type**: the level's variables, whole numbers, `+ - * / %`, parentheses, `abs(e)`, `min(e, e)`, `max(e, e)`;
   the buttons under the answer box type them for you. `/` and `%` keep the remainder ≥ 0 (`-7 / 2 = -4`, `-7 % 2 = 1`).
-  A railing R (a condition) from level 9, a tuple `(a, b)` from level 10.
+  A railing R (a condition) from level 7, a tuple `(a, b)` from level 10.
 - **The tutorial** is its own screen: one flow of 8 pages (welcome · the stairs · step 1, verdict · step 2, proof (it ends) ·
   flat stairs and the basement · step 2, proof (it never ends) · what you can type · level 1), with Next / Back, a page counter
   and Skip; the last page starts level 1. If you have not finished it, the first visit to level 1 suggests it.
-- The first time you open level 9 or 10, a two-page intro comes first (railing; floors and steps). The level's `?` shows it again.
+- The first time you open level 7 or 10, a two-page intro comes first (railing; floors and steps). The level's `?` shows it again.
 - The tutorial and the intros only use **tutorial-only programs**, not levels, so they never give away a level's answer; the
   one exception is `n` for level 1, the practice level.
 
@@ -210,6 +231,10 @@ Your goal is to **judge** and **prove** 18 loops, one by one. Every level has tw
 | loop condition false at the start | the walker leaves through the door before any step (0 steps) |
 | supporting invariant | railing R |
 | recurrent set | bottomless zone Z |
+
+**Total correctness = invariants (railings) + ranking functions (steps left).** Invariants carry 'if it ends, the result is right';
+here, as railings, they also let the judge check the steps left only on states a real run can reach. Never-ending proofs use a
+bottomless zone Z, which is also an inductive invariant (true at the start and still true one step later).
 
 ### The checks (exactly these)
 
@@ -250,7 +275,10 @@ Pushing to `main` runs `.github/workflows/pages.yml`: test, build, deploy `dist/
   License: [licenses/Pretendard-OFL-1.1.txt](licenses/Pretendard-OFL-1.1.txt) and `fonts/LICENSE.txt` in the build.
 - Sounds are generated with WebAudio (step, landing, failure, solved); no sound files. `prefers-reduced-motion` shortens the animations.
 - Z3 needs SharedArrayBuffer, hence a cross-origin isolated page. The dev server sends the headers; on GitHub Pages
-  `coi-serviceworker` adds them (the first visit reloads once).
+  `coi-serviceworker` adds them (the first visit reloads once). That script uses COEP `credentialless` in browsers other than
+  Chrome and Firefox, which Safari does not support, so the judge never started there. `index.html` therefore sets
+  `window.coi = { coepCredentialless: () => false }`: plain `require-corp` everywhere (every file is same-origin). Checked in
+  Chrome and in Playwright's WebKit (Safari's engine): the judge gets ready and the levels can be solved.
 - Z3's Emscripten loader and wasm and the font files are not bundled: `scripts/copy-assets.mjs` copies them to `public/`.
   The 35 MB wasm is fetched gzipped (about 8 MB) and unpacked in the browser. The page stays usable while it loads.
 - Progress (best stars, whether the tutorial was finished, intros already shown, daily puzzle, sound setting) lives in

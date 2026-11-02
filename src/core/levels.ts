@@ -27,6 +27,11 @@ export interface LevelDef {
    * loop condition false right away: the loop runs zero times (checked before every step, even the first).
    */
   samples: Record<string, number>[];
+  /**
+   * Shown after "It ends" is refuted without a railing: a nudge toward "what stays true?" that does not give the
+   * railing away. {s} is the judge's counterexample state.
+   */
+  railHint?: Text;
 }
 
 export interface Level extends LevelDef {
@@ -41,7 +46,8 @@ export interface Level extends LevelDef {
   branches: Branch[];
 }
 
-export const RAILING_FROM = 9;
+/** Railings unlock at level 7, the first level whose proof needs one. */
+export const RAILING_FROM = 7;
 export const TUPLES_FROM = 10;
 
 const DEFS: LevelDef[] = [
@@ -158,10 +164,13 @@ while (i < n) {
     inputs: ['a', 'b'],
     start: 'a >= 1 && b >= 1',
     startText: 'a ≥ 1, b ≥ 1',
-    facts: 'a >= 1 && b >= 1',
-    factsText: 'a ≥ 1, b ≥ 1',
+    facts: 'true',
     kind: 'ends',
-    par: 3,
+    par: 13,
+    railHint: {
+      ko: '판정기가 찾은 {s}에서는 반복이 계속돼요. 실제 실행이 이 상태에 올 수 있을까요? 시작 조건을 보고, 매 걸음 뒤에도 늘 참으로 남는 사실이 무엇인지 생각해 보세요. 그 사실을 난간 R로 알려 줄 수 있어요.',
+      en: 'The judge found {s}, where the loop keeps going. Can a real run ever get there? Look at the start condition and ask what stays true after every step; you can tell the judge with a railing R.',
+    },
     samples: [
       { a: 12, b: 8 },
       { a: 5, b: 3 },
@@ -193,6 +202,10 @@ while (i != n) {
     facts: 'true',
     kind: 'ends',
     par: 7,
+    railHint: {
+      ko: '반복이 시작부터 정말 {s}에 갈 수 있을까요? 갈 수 없다면 난간 R로 그런 상태를 빼 줄 수 있어요.',
+      en: 'Can the loop really reach {s} from a start? If not, a railing R can rule such states out.',
+    },
     samples: [{ n: 3 }, { n: 5 }, { n: 0 }],
   },
   {
@@ -231,10 +244,13 @@ while (i != n) {
     inputs: ['x', 'y', 'm'],
     start: '0 <= y && y <= m',
     startText: '0 ≤ y ≤ m',
-    facts: '0 <= y && y <= m',
-    factsText: '0 ≤ y ≤ m',
+    facts: 'true',
     kind: 'ends',
-    par: 5,
+    par: 15,
+    railHint: {
+      ko: '판정기가 찾은 {s}에 실제 실행이 올 수 있을까요? 시작 조건 가운데 무엇이 매 걸음 뒤에도, y := m으로 다시 채울 때도 참으로 남는지 생각해 보세요. 그것을 난간 R로 알려 줄 수 있어요.',
+      en: 'Can a real run reach {s}? Which part of the start condition stays true after every step, including the step that refills y := m? Tell the judge with a railing R.',
+    },
     samples: [
       { x: 2, y: 1, m: 3 },
       { x: 1, y: 2, m: 2 },
@@ -337,9 +353,14 @@ while (i != n) {
 }`,
     inputs: ['x', 'y'],
     start: 'y >= 1',
-    facts: 'y >= 1',
+    startText: 'y ≥ 1',
+    facts: 'true',
     kind: 'ends',
-    par: 1,
+    par: 5,
+    railHint: {
+      ko: '판정기가 찾은 {s}에 실제 실행이 올 수 있을까요? 반복 안에서 y는 바뀌나요? 시작할 때 참이고 매 걸음 뒤에도 참인 사실은 난간 R로 알려 줄 수 있어요.',
+      en: 'Can a real run reach {s}? Does y ever change inside the loop? Something true at the start and after every step can be given as a railing R.',
+    },
     samples: [
       { x: 7, y: 2 },
       { x: 5, y: 5 },
@@ -413,11 +434,11 @@ export function levelById(id: number): Level {
 // ---------------------------------------------------------------- tutorial-only programs
 
 /**
- * Programs that appear only in the tutorial and in the short intros before levels 9 and 10. They are not
+ * Programs that appear only in the tutorial and in the short intros before levels 7 and 10. They are not
  * levels (never in LEVELS, never in the level select), so the tutorial cannot give away a level's answer.
  * `countdown` is level 1's code on purpose: level 1 is the practice level.
  * Their ids start at 101 so they never clash with a level; the railing and tuple gates of the game rules
- * (open from level 9 and 10) are therefore open for them, which the railing and floors intros need.
+ * (open from level 7 and 10) are therefore open for them, which the railing and floors intros need.
  */
 export type TutorialKey = 'countdown' | 'flip' | 'railing' | 'floors';
 

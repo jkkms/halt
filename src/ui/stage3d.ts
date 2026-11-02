@@ -1007,7 +1007,8 @@ class Stage3D implements StageRenderer {
     }
     const node = this.nodes[s.from];
     const decided = this.t / s.dur > 0.35;
-    const verdict = s.holds ? `✓ ${this.text.yes}` : `✗ ${this.text.no}`;
+    // The check that ends the run says where the walker goes: "4 < 4 false → loop ends, to the exit".
+    const verdict = s.holds ? `✓ ${this.text.yes}` : `✗ ${this.text.exitCheck}`;
     const html = `<code>${this.esc(node?.check ?? '')}</code>${decided ? `<span>${this.esc(verdict)}</span>` : '<span>?</span>'}`;
     if (b.dataset.html !== html) {
       b.innerHTML = html;

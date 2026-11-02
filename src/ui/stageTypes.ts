@@ -19,6 +19,8 @@ export interface StageText {
   callouts: Record<Callout, string>;
   yes: string;
   no: string;
+  /** The last check of a run: "false → loop ends, to the exit". */
+  exitCheck: string;
   vUnknown: string;
   stepsLeft: string;
 }

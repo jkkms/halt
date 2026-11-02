@@ -107,9 +107,9 @@ for (const level of LEVELS) {
     }
 
     if (level.kind === 'ends') {
-      it('some reference answer meets par', () => {
+      it('par is the length of the shortest reference answer (railing counts)', () => {
         const best = Math.min(...(ans.ends ?? []).map((a) => proofLength(level, a.V, a.R ?? '')));
-        assert.ok(best <= level.par!, `best ${best} > par ${level.par}`);
+        assert.equal(level.par, best);
       });
     }
 
@@ -204,6 +204,28 @@ describe('special cases', () => {
     assert.ok(parseR(l9, 'i<=n'));
     assert.equal(proofLength(l9, 'n-i', 'i <= n'), 7);
     assert.equal(proofLength(l9, 'n-i', ''), 3);
+  });
+
+  it('levels 7, 11, 16 state no loop-head facts: the invariant has to come as a railing', async () => {
+    for (const id of [7, 11, 16]) {
+      const l = levelById(id);
+      assert.equal(l.facts, 'true', `level ${id}`);
+      assert.notEqual(l.start, 'true', `level ${id} keeps its start condition`);
+      assert.ok(l.railHint?.ko.includes('{s}') && l.railHint.en.includes('{s}'), `level ${id} has a railing hint`);
+    }
+    const status = (o: Outcome) => (o.type === 'ends' ? Object.fromEntries(o.details.map((d) => [d.id, d.status])) : {});
+    // 7: a+b without a railing falls below ground (b can be anything); a>=1 alone holds but is not enough
+    const l7 = levelById(7);
+    assert.equal(status(await proveEnds(z.judge, l7, 'a+b', '')).bounded, 'fail');
+    const weak = status(await proveEnds(z.judge, l7, 'a+b', 'a>=1'));
+    assert.deepEqual([weak.railStart, weak.railStep, weak.bounded], ['pass', 'pass', 'fail']);
+    // 11: 0<=y alone is not a railing: the step y := m can break it
+    const l11 = levelById(11);
+    assert.equal(status(await proveEnds(z.judge, l11, '(x,y)', '0<=y')).railStep, 'fail');
+    assert.equal(status(await proveEnds(z.judge, l11, '(x,y)', '')).bounded, 'fail');
+    // 16: without y >= 1 the step x := x - y may go up
+    assert.equal(status(await proveEnds(z.judge, levelById(16), 'x', '')).decreasing, 'fail');
+    assert.equal(proofLength(l7, 'a+b', 'a>=1 && b>=1'), 13);
   });
 
   it('level 10: tuple and weighted sum both work, x+y fails on the minute rollover', async () => {

@@ -31,7 +31,7 @@ import { introFor, INTRO_LEVELS } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { sfx } from './audio.ts';
 import { renderChart, type Series } from './chart.ts';
-import { chipBar } from './chips.ts';
+import { chipBar, syntaxExample } from './chips.ts';
 import { codeView, follow, type CodeView } from './code.ts';
 import { clear, h, s } from './dom.ts';
 import { errorText } from './errors.ts';
@@ -55,6 +55,10 @@ interface Session {
   busy: boolean;
   tries: number;
   sample: number;
+  /** Step 1 reopened with "change" after a verdict was chosen. */
+  verdictOpen: boolean;
+  /** The text of each input at the last judged attempt (focusing such an input selects it all). */
+  judged: Record<string, string>;
 }
 
 const CHECK_ORDER = ['railStart', 'railStep', 'bounded', 'decreasing', 'zoneStart', 'zoneGuard', 'zoneStep'];
@@ -77,6 +81,8 @@ function fresh(level: Level): Session {
     busy: false,
     tries: 0,
     sample: 0,
+    verdictOpen: false,
+    judged: {},
   };
 }
 
@@ -105,6 +111,8 @@ export class LevelScreen implements Screen {
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private badge: HTMLButtonElement & { paint: () => void };
   private soundNext = false;
+  /** After a judged attempt, the input that had the focus gets it back with its whole content selected. */
+  private selectOnRender = false;
 
   constructor(app: App, id: number, daily: string | null) {
     this.app = app;
@@ -137,7 +145,9 @@ export class LevelScreen implements Screen {
     const bar = this.app.bar({ back: { label: t('backLevels'), href: '#/levels' }, title, extra: [this.badge, help] });
     this.els.graph.replaceChildren(h('summary', {}, t('graph')), h('p', { class: 'chart-hint' }, t('graphHint')), this.chartSvg, this.chartLegend, this.chartNote);
     this.els.graph.addEventListener('toggle', () => this.renderChart());
-    this.panel.replaceChildren(this.els.intro, this.els.code, this.els.verdict, this.els.proof, this.els.result, this.els.graph);
+    // The code card stays on top (sticky); the intro note goes under the result so that the code, the input,
+    // the chips and the check button fit on one laptop screen.
+    this.panel.replaceChildren(this.els.code, this.els.verdict, this.els.proof, this.els.result, this.els.intro, this.els.graph);
     this.el.replaceChildren(bar, h('div', { class: 'level-main' }, this.stageBox, h('aside', { class: 'panel' }, this.panel)));
     this.renderAll();
   }
@@ -230,58 +240,71 @@ export class LevelScreen implements Screen {
     const el = this.els.code;
     const best = this.app.saved.best[l.id] ?? 0;
     this.codeView = codeView(l, this.failingLines());
-    const startText = l.start === 'true' ? t('anyIntegers') : pretty(l.startText ?? l.start);
-    const factsText = l.facts === 'true' ? t('none') : pretty(l.factsText ?? l.facts);
-    const fine: string[] = [];
-    if (l.locals.length) fine.push(t('localsNote', { names: l.locals.join(', ') }));
-    fine.push(t('intDomain'));
-    const kids: (Node | null)[] = [
+    const inputs = l.start === 'true' ? `${l.inputs.join(', ')} (${t('anyIntegers')})` : `${l.inputs.join(', ')} (${pretty(l.startText ?? l.start)})`;
+    const facts = l.facts === 'true' ? t('none') : pretty(l.factsText ?? l.facts);
+    const attempts = this.ses.marks.length + (this.ses.solved ? 1 : 0);
+    const kids: (HTMLElement | null)[] = [
       h(
         'div',
         { class: 'level-head' },
         h('span', { class: 'level-num' }, `${t('levelN', { n: l.id })} / ${LEVELS.length}`),
         h('h2', { class: 'level-title' }, l.title[lang()]),
         h('span', { class: 'level-stars', title: t('bestStars', { stars: starsText(best) }) }, starsText(best)),
+        h('span', { class: 'attempt-line', 'data-role': 'attempts' }, t('attempts', { n: attempts })),
       ),
       l.note ? h('p', { class: 'level-note' }, l.note[lang()]) : null,
       this.codeView.el,
-      h(
-        'dl',
-        { class: 'facts' },
-        h('dt', {}, t('inputs')),
-        h('dd', {}, h('code', {}, l.inputs.join(', ')), l.start === 'true' ? ` (${startText})` : null),
-        l.start !== 'true' ? [h('dt', {}, t('start')), h('dd', {}, h('code', {}, startText))] : null,
-        h('dt', {}, t('facts')),
-        h('dd', {}, l.facts === 'true' ? factsText : h('code', {}, factsText)),
-      ),
-      h('p', { class: 'fineprint' }, fine.join(' ')),
+      h('p', { class: 'code-meta' }, h('span', { class: 'meta-key' }, `${t('inputs')}:`), ' ', h('code', {}, inputs)),
+      h('p', { class: 'code-meta' }, h('span', { class: 'meta-key' }, `${t('facts')}:`), ' ', l.facts === 'true' ? facts : h('code', {}, facts)),
     ];
-    el.replaceChildren(...kids.filter((x): x is Node => x !== null));
+    el.replaceChildren(...kids.filter((x): x is HTMLElement => x !== null));
   }
 
   // ------------------------------------------------------------ verdict
 
   private renderVerdict(): void {
     const el = this.els.verdict;
-    const mk = (v: Verdict, label: string) =>
+    const v = this.ses.verdict;
+    const label = (x: Verdict) => t(x === 'ends' ? 'verdictEnds' : x === 'never' ? 'verdictNever' : 'verdictNobody');
+    el.classList.toggle('collapsed', v !== null && !this.ses.verdictOpen);
+    if (v !== null && !this.ses.verdictOpen) {
+      // One line once chosen: "1단계 판정: 끝난다 · 바꾸기".
+      el.replaceChildren(
+        h(
+          'p',
+          { class: 'verdict-line' },
+          h('span', { class: 'verdict-line-key' }, `${t('verdictChosen')}:`),
+          ' ',
+          h('strong', { 'data-role': 'verdict-chosen' }, label(v)),
+          ' · ',
+          h('button', { type: 'button', class: 'linkish', 'data-role': 'change-verdict', disabled: this.ses.busy, onclick: () => this.reopenVerdict() }, t('changeVerdict')),
+        ),
+      );
+      return;
+    }
+    const mk = (x: Verdict) =>
       h(
         'button',
         {
           type: 'button',
-          class: `verdict v-${v}${this.ses.verdict === v ? ' on' : ''}`,
-          'aria-pressed': this.ses.verdict === v ? 'true' : 'false',
-          'data-verdict': v,
-          onclick: () => this.chooseVerdict(v),
+          class: `verdict v-${x}${v === x ? ' on' : ''}`,
+          'aria-pressed': v === x ? 'true' : 'false',
+          'data-verdict': x,
+          title: t(x === 'ends' ? 'verdictEndsTip' : x === 'never' ? 'verdictNeverTip' : 'verdictNobodyTip'),
+          onclick: () => this.chooseVerdict(x),
         },
-        label,
+        label(x),
       );
-    const best = this.app.saved.best[this.level.id] ?? 0;
     el.replaceChildren(
       h('h3', { class: 'card-title step-title' }, t('verdictQ')),
-      h('div', { class: 'verdicts', role: 'group', 'aria-label': t('verdictQ') }, mk('ends', t('verdictEnds')), mk('never', t('verdictNever')), mk('nobody', t('verdictNobody'))),
-      h('p', { class: 'help' }, t('verdictHelp')),
-      h('p', { class: 'attempt-line' }, t('attempts', { n: this.ses.marks.length + (this.ses.solved ? 1 : 0) }), best ? ` · ${t('bestStars', { stars: starsText(best) })}` : ''),
+      h('div', { class: 'verdicts', role: 'group', 'aria-label': t('verdictQ') }, mk('ends'), mk('never'), mk('nobody')),
     );
+  }
+
+  private reopenVerdict(): void {
+    this.ses.verdictOpen = true;
+    this.renderVerdict();
+    this.els.verdict.querySelector<HTMLButtonElement>('.verdict.on')?.focus({ preventScroll: true });
   }
 
   // ------------------------------------------------------------ proof
@@ -307,6 +330,18 @@ export class LevelScreen implements Screen {
     inp.value = value;
     inp.addEventListener('input', () => onInput(inp.value));
     if (key === 'V' || key === 'R' || key === 'Z') inp.addEventListener('focus', () => (this.lastField = key));
+    // After a judged attempt, focusing the answer selects it all, so typing replaces it (not "nn-i").
+    let justSelected = false;
+    inp.addEventListener('focus', () => {
+      if (this.ses.outcome && key in this.ses.judged && inp.value !== '' && inp.value === this.ses.judged[key]) {
+        inp.select();
+        justSelected = true;
+      }
+    });
+    inp.addEventListener('mouseup', (e) => {
+      if (justSelected) e.preventDefault();
+      justSelected = false;
+    });
     return inp;
   }
 
@@ -325,7 +360,14 @@ export class LevelScreen implements Screen {
     const sub = v === 'ends' ? t('proofSubEnds') : v === 'never' ? t('proofSubNever') : v === 'nobody' ? t('proofSubNobody') : null;
     el.classList.toggle('locked', v === null);
     el.setAttribute('aria-disabled', v === null ? 'true' : 'false');
-    el.append(h('h3', { class: 'card-title step-title' }, t('proofTitle')), sub ? h('p', { class: 'step-sub' }, sub) : h('p', { class: 'step-sub locked-note' }, t('proofLocked')));
+    el.append(
+      h(
+        'div',
+        { class: 'step-head' },
+        h('h3', { class: 'card-title step-title' }, t('proofTitle')),
+        sub ? h('span', { class: 'step-sub' }, sub) : h('span', { class: 'step-sub locked-note' }, t('proofLocked')),
+      ),
+    );
     if (v === 'nobody') el.append(h('p', { class: 'help' }, t('proofNobodyBody')));
     if (v === 'ends') {
       const meta = h('span', { class: 'field-meta' });
@@ -343,19 +385,28 @@ export class LevelScreen implements Screen {
       const form = h(
         'form',
         { class: 'proof', novalidate: true, onsubmit: (e: Event) => (e.preventDefault(), void this.submitEnds()) },
-        h('label', { class: 'field' }, h('span', { class: 'field-name' }, t('stepsLeft'), ' ='), vIn, this.fieldError('V')),
+        h('label', { class: 'field inline' }, h('span', { class: 'field-name' }, t('stepsLeft'), ' ='), vIn, this.fieldError('V')),
       );
       if (railingAllowed(l)) {
         const rIn = this.input('R', this.ses.rText, t('rPlaceholder'), (x) => {
           this.ses.rText = x;
           updateMeta();
         });
-        form.append(h('label', { class: 'field' }, h('span', { class: 'field-name' }, t('railing'), ' ', h('var', {}, 'R'), ' =', h('small', {}, ` (${t('optional')})`)), rIn, this.fieldError('R')));
+        form.append(h('label', { class: 'field inline' }, h('span', { class: 'field-name' }, t('railing'), ' ', h('var', {}, 'R'), ' =', h('small', {}, ` (${t('optional')})`)), rIn, this.fieldError('R')));
       }
       form.append(
-        chipBar({ vars: l.vars, cond: railingAllowed(l), tuple: tuplesAllowed(l), target: () => this.target() }),
-        h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary', 'data-role': 'check' }, t('check')), meta, h('span', { class: 'proof-status' })),
-        h('p', { class: 'help' }, t('syntaxHelp'), tuplesAllowed(l) ? ` ${t('syntaxTuple')}` : '', railingAllowed(l) ? ` ${t('railHelp')}` : ''),
+        chipBar({ vars: l.vars, cond: railingAllowed(l), tuple: tuplesAllowed(l), target: () => this.target(), example: false }),
+        h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary', 'data-role': 'check' }, t('check')), this.judgeSlot(), meta, h('span', { class: 'proof-status' })),
+        h(
+          'p',
+          { class: 'help' },
+          t('syntaxHelp'),
+          tuplesAllowed(l) ? ` ${t('syntaxTuple')}` : '',
+          railingAllowed(l) ? ` ${t('railHelp')}` : '',
+          l.locals.length ? ` ${t('localsNote', { names: l.locals.join(', ') })}` : '',
+          ` ${t('inputExample')}: `,
+          h('code', {}, syntaxExample(l.vars, false)),
+        ),
       );
       el.append(form);
     } else if (v === 'never') {
@@ -389,38 +440,59 @@ export class LevelScreen implements Screen {
           h(
             'form',
             { class: 'proof zone-form', novalidate: true, onsubmit: (e: Event) => (e.preventDefault(), void this.submitZone()) },
-            h('label', { class: 'field' }, h('span', { class: 'field-name' }, t('zone'), ' ', h('var', {}, 'Z'), ' ='), this.input('Z', this.ses.zText, t('zonePlaceholder'), (x) => (this.ses.zText = x)), this.fieldError('Z')),
-            chipBar({ vars: l.vars, cond: true, tuple: false, target: () => this.target() }),
-            h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary', 'data-role': 'check' }, t('check')), h('span', { class: 'proof-status' })),
+            h('label', { class: 'field inline' }, h('span', { class: 'field-name' }, t('zone'), ' ', h('var', {}, 'Z'), ' ='), this.input('Z', this.ses.zText, t('zonePlaceholder'), (x) => (this.ses.zText = x)), this.fieldError('Z')),
+            chipBar({ vars: l.vars, cond: true, tuple: false, target: () => this.target(), example: false }),
+            h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary', 'data-role': 'check' }, t('check')), this.judgeSlot(), h('span', { class: 'proof-status' })),
             h('p', { class: 'help' }, t('zoneHelp')),
           ),
         );
       }
     }
     this.renderProofStatus();
+    const selectAll = this.selectOnRender;
+    this.selectOnRender = false;
     if (focusKey) {
       const again = el.querySelector<HTMLInputElement>(`[data-focus="${CSS.escape(focusKey)}"]`);
       if (again) {
         again.focus({ preventScroll: true });
         const [a, b] = sel ?? [null, null];
-        if (typeof a === 'number' && typeof b === 'number') again.setSelectionRange(a, b);
+        if (selectAll) again.select();
+        else if (typeof a === 'number' && typeof b === 'number') again.setSelectionRange(a, b);
       }
     }
   }
 
+  /** In place of the check button until the judge is ready: its progress, or why it failed and a retry. */
+  private judgeSlot(): HTMLElement {
+    return h('span', { class: 'judge-slot', 'data-role': 'judge-slot', 'aria-live': 'polite' });
+  }
+
   private renderProofStatus(): void {
     const z3 = this.app.z3;
+    const ready = !!this.app.judge;
     for (const st of this.els.proof.querySelectorAll<HTMLElement>('.proof-status')) {
-      let text = '';
-      if (this.ses.busy) text = this.app.judge ? t('checking') : t('waitingJudge');
-      else if (z3.state === 'error') text = t('judgeError');
-      else if (!this.app.judge) text = t('judgeLoadingNote');
-      st.textContent = text;
+      st.textContent = this.ses.busy ? (ready ? t('checking') : t('waitingJudge')) : '';
       st.classList.toggle('busy', this.ses.busy);
     }
     for (const b of this.els.proof.querySelectorAll<HTMLButtonElement>('[data-role="check"]')) {
+      b.hidden = !ready;
       b.disabled = this.ses.busy;
       b.textContent = this.ses.busy ? t('checking') : t('check');
+    }
+    for (const slot of this.els.proof.querySelectorAll<HTMLElement>('[data-role="judge-slot"]')) {
+      slot.hidden = ready;
+      if (ready) {
+        slot.replaceChildren();
+        continue;
+      }
+      if (z3.state === 'error') {
+        slot.dataset.state = 'error';
+        slot.replaceChildren(h('span', { class: 'judge-why' }, judgeReason(z3.reason)), ' ', retryButton());
+      } else {
+        slot.dataset.state = 'loading';
+        const pct = z3.state === 'loading' && z3.total ? Math.min(99, Math.round(((z3.loaded ?? 0) / z3.total) * 100)) : null;
+        slot.replaceChildren(h('span', { class: 'judge-wait' }, pct === null ? t('judgePreparing') : t('judgePreparingPct', { pct })));
+      }
     }
   }
 
@@ -506,7 +578,8 @@ export class LevelScreen implements Screen {
           if (o.result === 'undecided') parts.push(h('p', { class: 'note' }, t('undecidedBody')));
           const fail = this.firstFailure(o.details);
           if (fail?.lines?.length) parts.push(h('p', { class: 'note' }, t('linesRun')));
-          if (o.result === 'refuted' && l.id === 9 && !o.R && fail?.s) parts.push(h('p', { class: 'note hint' }, t('railHint', { s: fmtState(l.vars, fail.s) })));
+          if (o.result === 'refuted' && l.railHint && !o.R && fail?.s && (fail.id === 'bounded' || fail.id === 'decreasing'))
+            parts.push(h('p', { class: 'note hint' }, l.railHint[lang()].replace('{s}', fmtState(l.vars, fail.s))));
           if (o.result === 'refuted' && l.kind === 'never') {
             const s0 = this.keepGoingSample();
             if (s0) parts.push(h('p', { class: 'note' }, t('keepsGoing', { s0: fmtState(l.vars, s0) })));
@@ -767,6 +840,7 @@ export class LevelScreen implements Screen {
       this.ses.zoneRun = null;
     }
     this.ses.verdict = v;
+    this.ses.verdictOpen = false;
     this.ses.errors = [];
     this.lastField = v === 'never' ? 'Z' : 'V';
     if (v === 'nobody') {
@@ -862,6 +936,10 @@ export class LevelScreen implements Screen {
     const l = this.level;
     const app = this.app;
     this.ses.outcome = o;
+    if (o.type !== 'parseError' && o.type !== 'nobody') {
+      this.ses.judged = { V: this.ses.vText, R: this.ses.rText, Z: this.ses.zText, ...Object.fromEntries(Object.entries(this.ses.startTexts).map(([k, v]) => [`in:${k}`, v])) };
+      this.selectOnRender = true;
+    }
     this.ses.errors = o.type === 'parseError' ? o.errors : [];
     if (o.type === 'needZone') this.ses.zoneRun = { s0: o.s0, run: o.run };
     if (o.type === 'ended' || o.type === 'cycle' || o.type === 'notAllowed') this.ses.zoneRun = null;
@@ -894,8 +972,11 @@ export class LevelScreen implements Screen {
 
   private explainJudge(): void {
     const st = this.app.z3;
-    const msg =
-      st.state === 'error' ? (st.reason === 'isolation' ? t('judgeErrIsolation') : st.reason === 'download' ? t('judgeErrDownload') : t('judgeErrInit')) : st.state === 'ready' ? `${t('judgeReady')} (z3-solver 5.3.1)` : t('judgeLoadingNote');
+    if (st.state === 'error') {
+      openModal(t('judgeErrTitle'), [h('p', {}, judgeReason(st.reason))], [{ label: t('retry2'), primary: true, onClick: () => location.reload() }, { label: t('close') }]);
+      return;
+    }
+    const msg = st.state === 'ready' ? `${t('judgeReady')} (z3-solver 5.3.1)` : t('judgeLoadingNote');
     openModal('Z3', [h('p', {}, msg)], [{ label: t('close'), primary: true }]);
   }
 
@@ -905,6 +986,16 @@ export class LevelScreen implements Screen {
 }
 
 const minus = (s: string) => s.replace(/-/g, '−');
+
+/** Why the judge could not start, in plain words. */
+export function judgeReason(reason: 'isolation' | 'download' | 'init'): string {
+  return t(reason === 'isolation' ? 'judgeErrIsolation' : reason === 'download' ? 'judgeErrDownload' : 'judgeErrInit');
+}
+
+/** [다시 시도]: a plain reload (the service worker and the download start again). */
+export function retryButton(): HTMLButtonElement {
+  return h('button', { type: 'button', class: 'btn small', 'data-role': 'retry', onclick: () => location.reload() }, t('retry2'));
+}
 
 async function copyText(text: string): Promise<boolean> {
   try {

@@ -241,7 +241,8 @@ export class TutorialScreen implements Screen {
     });
     const field = h('label', { class: 'try-field' }, h('span', { class: 'field-name' }, t('tryVLabel')), input);
     const chips = withChips ? chipBar({ vars: prog.vars, cond: false, tuple: false, target: () => input, example: false }) : null;
-    return h('div', { class: 'try' }, field, status, chips);
+    // Page 7 also carries the integer rules that the level screen no longer repeats.
+    return h('div', { class: 'try' }, field, status, chips, withChips ? h('p', { class: 'narr-note int-note' }, t('intDomain')) : null);
   }
 
   private extra(p: TutPage): HTMLElement | null {

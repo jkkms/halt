@@ -40,6 +40,7 @@ export function stageText(): StageText {
     callouts: { ground: t('coGround'), basement: t('coBasement'), walker: t('coWalker'), door: t('coDoor'), stair: t('coStair') },
     yes: t('stYes'),
     no: t('stNo'),
+    exitCheck: t('stExitCheck'),
     vUnknown: t('vUnknown'),
     stepsLeft: t('stepsLeftAxis'),
   };

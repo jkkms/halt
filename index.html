@@ -4,13 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>It Ends</title>
-    <meta name="description" content="Will this loop ever end? A puzzle game about termination proofs: every program state is a stair at height V, and Z3 checks your proof." />
+    <meta name="description" content="Will this loop ever end? A puzzle game about termination proofs: every program state is a stair, as high as the steps left, and Z3 checks your proof." />
     <meta name="theme-color" content="#0c1330" />
     <!-- Pretendard (SIL OFL 1.1, fonts/LICENSE.txt), self-hosted, split by unicode-range. -->
     <link rel="stylesheet" href="./fonts/pretendard.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 32'%3E%3Crect width='40' height='32' rx='7' fill='%230c1330'/%3E%3Cpath d='M4 8h7v5h6v5h6v5v4H4z' fill='%23e8d8bb'/%3E%3Crect x='26' y='13' width='9' height='14' rx='4.5' fill='%23f2a541'/%3E%3C/svg%3E" />
     <!-- Makes the page cross-origin isolated on hosts that cannot send COOP/COEP headers (GitHub Pages).
          Z3 needs SharedArrayBuffer. The first visit registers the worker and reloads once. -->
+    <!-- coi-serviceworker would use COEP "credentialless" in every browser that is not Chrome or Firefox, and Safari
+         does not support it, so the page never became isolated there. Everything here is same-origin, so the plain
+         "require-corp" works in every browser. Must run before the coi script. -->
+    <script>window.coi = { coepCredentialless: () => false };</script>
     <script src="./coi-serviceworker.js"></script>
     <!-- z3-solver's browser entry reads Emscripten's global through Node's `global`. -->
     <script>globalThis.global = globalThis;</script>

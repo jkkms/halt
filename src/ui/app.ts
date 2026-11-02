@@ -215,11 +215,14 @@ export class App {
   }
 }
 
+/** The mute button is a toggle: pressed = muted, shown by a red slash across the speaker. */
 export function paintSound(b: HTMLButtonElement): void {
   const off = isMuted();
   b.replaceChildren(soundIcon(off));
-  b.setAttribute('aria-label', off ? t('soundOff') : t('soundOn'));
-  b.setAttribute('aria-pressed', off ? 'false' : 'true');
+  b.classList.toggle('muted', off);
+  b.dataset.muted = off ? 'true' : 'false';
+  b.setAttribute('aria-label', t('muteLabel'));
+  b.setAttribute('aria-pressed', off ? 'true' : 'false');
   b.title = `${t('soundTitle')} · ${off ? t('soundOff') : t('soundOn')}`;
 }
 
@@ -230,7 +233,10 @@ function soundIcon(off: boolean): SVGSVGElement {
   svg.setAttribute('aria-hidden', 'true');
   svg.innerHTML =
     '<path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>' +
-    (off ? '<path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' : '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>');
+    '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"' +
+    (off ? ' opacity="0.45"/>' : '/>') +
+    // the slash: a halo in the button's own background, then red on top, so it reads on dark and light bars
+    (off ? '<path class="slash-halo" d="M3.5 3.5l17 17" stroke-width="5" stroke-linecap="round"/><path class="slash" d="M3.5 3.5l17 17" stroke-width="2.6" stroke-linecap="round"/>' : '');
   return svg;
 }
 

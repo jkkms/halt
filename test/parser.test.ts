@@ -85,8 +85,9 @@ describe('parser: errors are specific', () => {
   ];
   for (const [name, f, want] of cases) it(name, () => assert.equal(code(f), want));
 
-  it('railing is ignored before level 9 and parsed from level 9', () => {
-    assert.equal(parseR(levelById(8), 'x > 0'), null);
+  it('railing is ignored before level 7 and parsed from level 7 (v0.4)', () => {
+    assert.equal(parseR(levelById(6), 'x > 0'), null);
+    assert.ok(parseR(levelById(7), 'a >= 1 && b >= 1'));
     assert.ok(parseR(levelById(9), 'i <= n'));
     assert.equal(parseR(levelById(9), ''), null);
   });
@@ -166,14 +167,14 @@ describe('level programs', () => {
         [3, 5],
         [4, 5],
         [6, 6],
-        [7, 3],
+        [7, 13],
         [9, 7],
         [10, 5],
-        [11, 5],
+        [11, 15],
         [13, 9],
         [14, 1],
         [15, 1],
-        [16, 1],
+        [16, 5],
       ],
     );
   });

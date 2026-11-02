@@ -27,15 +27,17 @@ export function recommendedNext(best: Record<string, number>): number | null {
 }
 
 /**
- * What a level's "?" opens: levels 9 and 10 their own intro (railing, floors and steps); the levels before
- * them the tutorial; the levels after them a small menu with the tutorial and both intros. Every level of a
+ * What a level's "?" opens: levels 7 and 10 their own intro (railing; floors and steps); the levels before
+ * level 7 the tutorial; every other level a small menu with the tutorial and both intros. Every level of a
  * range gets the same help, so the help never tells which levels end.
  */
 export type Help = { k: 'intro'; level: number } | { k: 'tutorial' } | { k: 'menu' };
 
+export const INTRO_AT = { railing: 7, floors: 10 } as const;
+
 export function helpFor(levelId: number): Help {
-  if (levelId === 9 || levelId === 10) return { k: 'intro', level: levelId };
-  return levelId < 9 ? { k: 'tutorial' } : { k: 'menu' };
+  if (levelId === INTRO_AT.railing || levelId === INTRO_AT.floors) return { k: 'intro', level: levelId };
+  return levelId < INTRO_AT.railing ? { k: 'tutorial' } : { k: 'menu' };
 }
 
 /** A tiny preview of the code for a level card: the init, the while line and the start of the body, on one line. */
