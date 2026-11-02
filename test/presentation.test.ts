@@ -173,16 +173,16 @@ describe('stairs and beats', () => {
 });
 
 describe('level groups', () => {
-  it('every level is in exactly one group, in the spec’s chapters', () => {
+  it('every level is in exactly one group, in campaign order', () => {
     const all = GROUPS.flatMap((g) => g.levels).sort((a, b) => a - b);
     assert.deepEqual(all, CAMPAIGN);
     assert.deepEqual(
       GROUPS.map((g) => g.levels),
       [
-        [1, 2, 3, 4],
-        [5, 8, 12, 17],
-        [9, 10, 11, 13],
-        [6, 7, 14, 15, 16],
+        [1, 2, 3, 4, 5],
+        [6, 7, 8, 9],
+        [10, 11, 12, 13],
+        [14, 15, 16, 17],
         [18],
       ],
     );

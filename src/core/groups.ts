@@ -10,10 +10,11 @@ export interface LevelGroup {
 }
 
 export const GROUPS: LevelGroup[] = [
-  { id: 'basics', title: { ko: '기초', en: 'Basics' }, levels: [1, 2, 3, 4] },
-  { id: 'forever', title: { ko: '끝날까, 안 끝날까', en: 'Will it end?' }, levels: [5, 8, 12, 17] },
-  { id: 'rails', title: { ko: '난간과 층', en: 'Railings and floors' }, levels: [9, 10, 11, 13] },
-  { id: 'applied', title: { ko: '응용', en: 'Applied' }, levels: [6, 7, 14, 15, 16] },
+  // Groups follow the campaign order, so a group never tells which levels end and which do not.
+  { id: 'basics', title: { ko: '기초', en: 'Basics' }, levels: [1, 2, 3, 4, 5] },
+  { id: 'further', title: { ko: '한 걸음 더', en: 'One step further' }, levels: [6, 7, 8, 9] },
+  { id: 'floors', title: { ko: '층과 계단', en: 'Floors and steps' }, levels: [10, 11, 12, 13] },
+  { id: 'applied', title: { ko: '응용', en: 'Applied' }, levels: [14, 15, 16, 17] },
   { id: 'last', title: { ko: '마지막', en: 'The last one' }, levels: [18] },
 ];
 
@@ -29,7 +30,9 @@ export function recommendedNext(best: Record<string, number>): number | null {
 export function helpChapter(levelId: number): number {
   if (levelId === 9) return 5;
   if ([10, 11, 13].includes(levelId)) return 6;
-  if ([5, 8, 12, 17, 18].includes(levelId)) return 4;
+  // From level 5 on every level may end or not, so all of them point at the verdict chapter
+  // (pointing only the never-ending ones there would give their verdict away).
+  if (levelId >= 5) return 4;
   if (levelId <= 2) return 2;
   return 3;
 }

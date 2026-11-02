@@ -70,8 +70,8 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         text: {
-          ko: '걷는 사람은 변수 값을 들고 다녀요(지금은 n = 3). 반복을 한 번 돌 때마다 계단을 한 칸 내려가요. 계단 한 칸이 반복 한 번이에요.',
-          en: 'The walker carries the values of the variables (here n = 3). Each time the loop body runs, the walker goes down one stair. One stair = one loop iteration.',
+          ko: '걷는 사람은 변수 값을 들고 다녀요(이 예에서는 n = 3에서 출발). 반복을 한 번 돌 때마다 계단을 한 칸 내려가요. 계단 한 칸이 반복 한 번이에요.',
+          en: 'The walker carries the values of the variables (this run starts at n = 3). Each time the loop body runs, the walker goes down one stair. One stair = one loop iteration.',
         },
         scene: { k: 'run', level: 1, start: { n: 3 } },
         code: 1,

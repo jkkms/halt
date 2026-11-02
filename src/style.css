@@ -363,6 +363,13 @@ var {
   z-index: 1;
 }
 
+@media (max-width: 1240px) {
+  /* Mid widths: the text column covers more of the stage, so the shade reaches further. */
+  .title-shade {
+    background: linear-gradient(90deg, rgba(10, 14, 36, 0.94) 0%, rgba(10, 14, 36, 0.88) 50%, rgba(10, 14, 36, 0.35) 72%, rgba(10, 14, 36, 0) 88%);
+  }
+}
+
 .title-content {
   position: relative;
   z-index: 2;
