@@ -21,6 +21,8 @@ export interface SceneText {
   exit: string;
   forever: string;
   replay: string;
+  vUnknown: string;
+  stepsLeft: string;
 }
 
 export type SceneModel =
@@ -136,7 +138,7 @@ export class Scene {
     let d = `M${x0} ${top}`;
     for (let i = 0; i < steps; i++) d += ` h${w} v${dy}`;
     this.svg.append(s('path', { d, class: 'stairs unknown' }));
-    this.svg.append(s('text', { x: x0 - 16, y: top + 4, class: 'q', 'text-anchor': 'end' }, 'V = ?'));
+    this.svg.append(s('text', { x: x0 - 16, y: top + 4, class: 'q', 'text-anchor': 'end' }, this.text.vUnknown));
     this.svg.append(walker(x0 + w / 2, top, false));
   }
 
@@ -224,7 +226,7 @@ export class Scene {
       const bad = !!p.bad;
       fig.setAttribute('transform', `translate(${xOf(k) + stepW / 2} ${yOf(hs[k]!)})`);
       fig.setAttribute('class', `walker${bad ? ' bad' : ''}`);
-      counter.set(`${this.text.stepCounter(k)} · ${m.vName ?? 'V'} = ${p.walking ? rank(p.v) : '—'}`, stateShort(Object.keys(p.s), p.s));
+      counter.set(`${this.text.stepCounter(k)} · ${m.vName ?? this.text.stepsLeft} = ${p.walking ? rank(p.v) : '—'}`, stateShort(Object.keys(p.s), p.s));
     };
     place(0);
     if (pts.length === 0) return;

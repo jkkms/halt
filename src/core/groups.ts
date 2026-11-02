@@ -26,24 +26,16 @@ export function recommendedNext(best: Record<string, number>): number | null {
   return CAMPAIGN.find((id) => !(best[id] ?? 0)) ?? null;
 }
 
-/** The tutorial chapter that explains what a level needs. */
-export function helpChapter(levelId: number): number {
-  if (levelId === 9) return 5;
-  if ([10, 11, 13].includes(levelId)) return 6;
-  // From level 5 on every level may end or not, so all of them point at the verdict chapter
-  // (pointing only the never-ending ones there would give their verdict away).
-  if (levelId >= 5) return 4;
-  if (levelId <= 2) return 2;
-  return 3;
-}
+/**
+ * What a level's "?" opens: levels 9 and 10 their own intro (railing, floors and steps); the levels before
+ * them the tutorial; the levels after them a small menu with the tutorial and both intros. Every level of a
+ * range gets the same help, so the help never tells which levels end.
+ */
+export type Help = { k: 'intro'; level: number } | { k: 'tutorial' } | { k: 'menu' };
 
-/** Chapters 4–6 belong to a level; they are marked "new" once the player gets there. */
-export const CHAPTER_LEVEL: Record<number, number> = { 4: 5, 5: 9, 6: 10 };
-
-/** Levels whose first visit points at a tutorial chapter (a concept used there for the first time). */
-export function introChapter(levelId: number): number | null {
-  for (const [ch, id] of Object.entries(CHAPTER_LEVEL)) if (id === levelId) return Number(ch);
-  return null;
+export function helpFor(levelId: number): Help {
+  if (levelId === 9 || levelId === 10) return { k: 'intro', level: levelId };
+  return levelId < 9 ? { k: 'tutorial' } : { k: 'menu' };
 }
 
 /** A tiny preview of the code for a level card: the init, the while line and the start of the body, on one line. */

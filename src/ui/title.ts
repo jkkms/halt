@@ -4,7 +4,7 @@ import { recommendedNext } from '../core/groups.ts';
 import { levelById, LEVELS } from '../core/levels.ts';
 import { initialState } from '../core/sim.ts';
 import { runScene } from '../core/stage.ts';
-import { FIRST_CHAPTERS, HOOK, PURPOSE } from '../core/tutorial.ts';
+import { HOOK, PURPOSE } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { logoMark } from './app.ts';
 import { h } from './dom.ts';
@@ -25,7 +25,7 @@ export class TitleScreen implements Screen {
   private build(): void {
     const app = this.app;
     const L = lang();
-    const newcomer = FIRST_CHAPTERS.some((n) => !app.saved.chapters.includes(n)) && !Object.keys(app.saved.best).length;
+    const newcomer = app.saved.tutorial !== 'done' && !Object.keys(app.saved.best).length;
     const next = recommendedNext(app.saved.best);
     const today = dailyLevelId(utcDateKey(new Date()), LEVELS.length);
     const btn = (label: string, href: string, cls: string, sub?: string) =>

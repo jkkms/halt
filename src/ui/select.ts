@@ -2,7 +2,6 @@
 import { dailyLevelId, utcDateKey } from '../core/game.ts';
 import { codePreview, GROUPS, recommendedNext } from '../core/groups.ts';
 import { levelById, LEVELS } from '../core/levels.ts';
-import { FIRST_CHAPTERS } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { h } from './dom.ts';
 import { starsText } from './format.ts';
@@ -23,7 +22,7 @@ export class SelectScreen implements Screen {
     const L = lang();
     const next = recommendedNext(app.saved.best);
     const today = dailyLevelId(utcDateKey(new Date()), LEVELS.length);
-    const needTutorial = FIRST_CHAPTERS.some((n) => !app.saved.chapters.includes(n));
+    const needTutorial = app.saved.tutorial !== 'done';
     const card = (id: number) => {
       const l = levelById(id);
       const best = app.saved.best[id] ?? 0;

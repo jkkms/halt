@@ -499,126 +499,6 @@ var {
   color: var(--on-night);
 }
 
-.ch-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.ch-card {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 15px 18px;
-  border-radius: 16px;
-  background: var(--sand);
-  color: var(--ink);
-  text-decoration: none;
-  border: 2px solid transparent;
-  transition:
-    transform 0.12s ease,
-    box-shadow 0.12s ease;
-}
-
-.ch-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-}
-
-.ch-card.first:not(.done) {
-  border-color: var(--amber);
-}
-
-.ch-num {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px 12px 12px 4px;
-  display: grid;
-  place-items: center;
-  font-size: 21px;
-  font-weight: 850;
-  background: var(--dusk);
-  color: var(--amber-2);
-}
-
-.ch-card.done .ch-num {
-  background: var(--good);
-  color: #fff;
-}
-
-.ch-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.ch-title {
-  font-size: 18px;
-  font-weight: 760;
-}
-
-.ch-summary {
-  font-size: 14px;
-  color: var(--ink-2);
-  word-break: keep-all;
-}
-
-.ch-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.ch-tag {
-  font-weight: 700;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.ch-tag.ok {
-  background: var(--good-soft);
-  color: var(--good);
-}
-
-.concept-box {
-  margin-top: 40px;
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.concept-box h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  color: var(--amber-2);
-}
-
-.concepts {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.concepts td {
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
-  padding: 7px 8px 7px 0;
-  vertical-align: top;
-}
-
-.concepts td:first-child {
-  font-weight: 650;
-  width: 42%;
-}
-
 .nudge {
   margin: 18px 0 0;
   display: flex;
@@ -1057,6 +937,20 @@ var {
   cursor: pointer;
 }
 
+.pill.shot {
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.tut-stage .stage-controls {
+  top: auto;
+  bottom: 62px;
+  left: 12px;
+  right: auto;
+  max-width: calc(100% - 24px);
+  justify-content: flex-start;
+}
+
 .pill:hover {
   background: rgba(12, 16, 40, 0.9);
 }
@@ -1190,6 +1084,12 @@ var {
   font-size: 13px;
 }
 
+.tut-code-facts {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
 .narration {
   flex: 0 0 auto;
   max-height: 50dvh;
@@ -1215,22 +1115,25 @@ var {
   color: var(--ink-2);
 }
 
-.narr-hook {
-  margin: 8px 0 2px;
-  font-size: 21px;
-  font-weight: 800;
-  color: var(--ember);
+.narr-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.narr-purpose {
-  margin: 4px 0 8px;
-  padding: 10px 14px;
-  border-left: 4px solid var(--amber);
-  background: var(--sand);
-  border-radius: 0 10px 10px 0;
-  font-size: 15px;
-  line-height: 1.7;
-  word-break: keep-all;
+.skip {
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--ink);
 }
 
 .narr-text {
@@ -1238,6 +1141,85 @@ var {
   font-size: 17px;
   line-height: 1.7;
   word-break: keep-all;
+}
+
+.narr-text strong {
+  font-weight: 820;
+  color: var(--ember);
+}
+
+.narr-text code,
+.tut-code-facts code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--sand);
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+.verdict-card-demo {
+  margin: 10px 0 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--sand-3);
+  border-radius: var(--radius);
+  background: #fffaf1;
+}
+
+.verdict-card-demo .card-title {
+  margin-bottom: 8px;
+}
+
+.step-title {
+  margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.verdict-card .step-title {
+  margin-bottom: 10px;
+}
+
+.step-sub {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ember);
+}
+
+.proof-card.locked {
+  background: var(--sand);
+  border-style: dashed;
+}
+
+.proof-card.locked .step-title {
+  color: var(--ink-2);
+}
+
+.step-sub.locked-note {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.verdict.demo.hl {
+  border-color: var(--amber);
+  background: #fde4bd;
+  box-shadow: 0 0 0 4px rgba(242, 165, 65, 0.35);
+  animation: hl-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hl-pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgba(242, 165, 65, 0.12);
+  }
+}
+
+.tut-level-card {
+  max-width: 320px;
+  margin: 12px 0 2px;
+  border-color: var(--amber);
+  background: #fffaf1;
 }
 
 .narr-note {
@@ -1284,29 +1266,6 @@ var {
   background: var(--amber);
 }
 
-.narr-after {
-  display: none;
-}
-
-.narr-after.on {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--sand-3);
-}
-
-.narr-after .btn.ghost {
-  color: var(--ink);
-}
-
-.done-note {
-  font-weight: 800;
-  color: var(--good);
-}
-
 .try {
   margin: 10px 0 2px;
   padding: 12px;
@@ -1336,59 +1295,6 @@ var {
 
 .try-status.bad {
   color: var(--bad);
-}
-
-.sym-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-  margin: 10px 0 4px;
-}
-
-.sym {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 9px;
-  background: var(--sand);
-}
-
-.sym-key {
-  font-weight: 800;
-}
-
-.sym-ex {
-  color: var(--ink-2);
-  font-size: 13px;
-}
-
-.divmod {
-  margin: 10px 0 4px;
-  border-collapse: collapse;
-}
-
-.divmod td {
-  padding: 5px 18px 5px 0;
-  border-top: 1px solid var(--sand-2);
-  font-size: 15px;
-}
-
-.verdict-demo {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 10px 0 4px;
-}
-
-.stars-demo {
-  display: flex;
-  gap: 18px;
-  margin: 8px 0 2px;
-  font-size: 22px;
-  color: #b97a17;
-  letter-spacing: 0.08em;
 }
 
 /* ---------------------------------------------------------------- level screen */
@@ -2099,24 +2005,6 @@ var {
 
   .page-head h1 {
     font-size: 28px;
-  }
-
-  .ch-card {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 12px;
-    padding: 13px 14px;
-  }
-
-  .ch-num {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-  }
-
-  .ch-meta {
-    grid-column: 2;
-    flex-direction: row;
-    align-items: center;
   }
 
   .lv-grid {

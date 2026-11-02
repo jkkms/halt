@@ -23,11 +23,11 @@ import {
   type Outcome,
   type Verdict,
 } from '../core/game.ts';
-import { helpChapter, introChapter } from '../core/groups.ts';
+import { helpFor } from '../core/groups.ts';
 import { LEVELS, levelById, type Level } from '../core/levels.ts';
 import { initialState, sampleInputs, SIM_CAP, type Run, type State } from '../core/sim.ts';
 import { cexScene, heightMap, ringScene, runScene, sampleScene, sceneBase, shaftScene, stairsOfRun, walk, zeroSteps, guardCheck, stairsWithV, type StageScene } from '../core/stage.ts';
-import { chapterByN } from '../core/tutorial.ts';
+import { introFor, INTRO_LEVELS } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { sfx } from './audio.ts';
 import { renderChart, type Series } from './chart.ts';
@@ -123,7 +123,6 @@ export class LevelScreen implements Screen {
       }
     }
     app.saved.current = id;
-    app.saved.reached = Math.max(app.saved.reached ?? 0, id);
     app.persist();
     this.el = h('div', { class: 'screen level-screen' });
     this.build();
@@ -133,8 +132,7 @@ export class LevelScreen implements Screen {
 
   private build(): void {
     const l = this.level;
-    const ch = helpChapter(l.id);
-    const help = h('a', { class: 'icon-btn help-btn', href: `#/tutorial/${ch}`, title: t('helpChapter', { n: ch }), 'aria-label': t('helpChapter', { n: ch }) }, '?');
+    const help = h('button', { type: 'button', class: 'icon-btn help-btn', 'data-role': 'help', title: t('helpTitle'), 'aria-label': t('helpTitle'), onclick: () => this.openHelp() }, '?');
     const title = h('span', {}, h('span', { class: 'bar-ch' }, this.daily ? t('dailyTag', { date: this.daily }) : t('levelN', { n: l.id })), ' ', l.title[lang()]);
     const bar = this.app.bar({ back: { label: t('backLevels'), href: '#/levels' }, title, extra: [this.badge, help] });
     this.els.graph.replaceChildren(h('summary', {}, t('graph')), h('p', { class: 'chart-hint' }, t('graphHint')), this.chartSvg, this.chartLegend, this.chartNote);
@@ -147,6 +145,35 @@ export class LevelScreen implements Screen {
   shown(): void {
     this.app.stage.mount(this.stageBox);
     this.renderStage();
+    this.suggestTutorial();
+  }
+
+  /** The first visit to level 1 suggests the tutorial, unless it was read or skipped. */
+  private suggestTutorial(): void {
+    const saved = this.app.saved;
+    if (this.level.id !== 1 || this.daily || saved.tutorial || saved.introsShown.includes(1)) return;
+    saved.introsShown.push(1);
+    this.app.persist();
+    openModal(t('suggestTitle'), [h('p', {}, t('suggestBody'))], [
+      { label: t('suggestYes'), primary: true, onClick: () => (location.hash = '#/tutorial') },
+      { label: t('suggestNo') },
+    ]);
+  }
+
+  /** "?": the level's own intro (9, 10), the tutorial (before 9), or a menu of all three (after 10). */
+  private openHelp(): void {
+    const help = helpFor(this.level.id);
+    const here = location.hash || `#/level/${this.level.id}`;
+    if (help.k === 'intro') return this.app.openIntro(help.level, here);
+    if (help.k === 'tutorial') {
+      location.hash = '#/tutorial';
+      return;
+    }
+    openModal(t('helpTitle'), [], [
+      { label: t('helpTutorial'), primary: true, onClick: () => (location.hash = '#/tutorial') },
+      ...INTRO_LEVELS.map((n) => ({ label: t('helpIntro', { title: introFor(n)!.title[lang()], n }), onClick: () => this.app.openIntro(n, here) })),
+      { label: t('close') },
+    ]);
   }
 
   destroy(): void {
@@ -175,19 +202,19 @@ export class LevelScreen implements Screen {
 
   private renderIntro(): void {
     const el = this.els.intro;
-    const ch = introChapter(this.level.id);
-    el.hidden = ch === null;
-    if (ch === null) return;
-    if (!this.app.saved.introsSeen.includes(this.level.id)) {
-      this.app.saved.introsSeen.push(this.level.id);
-      this.app.persist();
-    }
-    const c = chapterByN(ch);
-    el.replaceChildren(
-      h('span', { class: 'intro-badge' }, '!'),
-      h('span', {}, t('newIdea', { title: c.title[lang()] })),
-      h('a', { class: 'btn small', href: `#/tutorial/${ch}` }, t('readChapter', { n: ch })),
-    );
+    const l = this.level;
+    const intro = introFor(l.id);
+    if (intro) {
+      el.hidden = false;
+      el.replaceChildren(
+        h('span', { class: 'intro-badge' }, '!'),
+        h('span', {}, t('newIdea', { title: intro.title[lang()] })),
+        h('button', { type: 'button', class: 'btn small', 'data-role': 'intro', onclick: () => this.app.openIntro(l.id, location.hash || `#/level/${l.id}`) }, t('readIntro')),
+      );
+    } else if (l.id === 1 && !this.daily && this.app.saved.tutorial !== 'done') {
+      el.hidden = false;
+      el.replaceChildren(h('span', { class: 'intro-badge' }, '?'), h('span', {}, t('startHere')), h('a', { class: 'btn small', href: '#/tutorial' }, t('openTutorial')));
+    } else el.hidden = true;
   }
 
   // ------------------------------------------------------------ code card
@@ -250,7 +277,7 @@ export class LevelScreen implements Screen {
       );
     const best = this.app.saved.best[this.level.id] ?? 0;
     el.replaceChildren(
-      h('h3', { class: 'card-title' }, t('verdictQ')),
+      h('h3', { class: 'card-title step-title' }, t('verdictQ')),
       h('div', { class: 'verdicts', role: 'group', 'aria-label': t('verdictQ') }, mk('ends', t('verdictEnds')), mk('never', t('verdictNever')), mk('nobody', t('verdictNobody'))),
       h('p', { class: 'help' }, t('verdictHelp')),
       h('p', { class: 'attempt-line' }, t('attempts', { n: this.ses.marks.length + (this.ses.solved ? 1 : 0) }), best ? ` · ${t('bestStars', { stars: starsText(best) })}` : ''),
@@ -295,7 +322,11 @@ export class LevelScreen implements Screen {
     clear(el);
     const l = this.level;
     const v = this.ses.verdict;
-    el.hidden = v === null || v === 'nobody';
+    const sub = v === 'ends' ? t('proofSubEnds') : v === 'never' ? t('proofSubNever') : v === 'nobody' ? t('proofSubNobody') : null;
+    el.classList.toggle('locked', v === null);
+    el.setAttribute('aria-disabled', v === null ? 'true' : 'false');
+    el.append(h('h3', { class: 'card-title step-title' }, t('proofTitle')), sub ? h('p', { class: 'step-sub' }, sub) : h('p', { class: 'step-sub locked-note' }, t('proofLocked')));
+    if (v === 'nobody') el.append(h('p', { class: 'help' }, t('proofNobodyBody')));
     if (v === 'ends') {
       const meta = h('span', { class: 'field-meta' });
       const updateMeta = () => {
@@ -312,7 +343,7 @@ export class LevelScreen implements Screen {
       const form = h(
         'form',
         { class: 'proof', novalidate: true, onsubmit: (e: Event) => (e.preventDefault(), void this.submitEnds()) },
-        h('label', { class: 'field' }, h('span', { class: 'field-name' }, t('stepsLeft'), ' ', h('var', {}, 'V'), ' ='), vIn, this.fieldError('V')),
+        h('label', { class: 'field' }, h('span', { class: 'field-name' }, t('stepsLeft'), ' ='), vIn, this.fieldError('V')),
       );
       if (railingAllowed(l)) {
         const rIn = this.input('R', this.ses.rText, t('rPlaceholder'), (x) => {
@@ -470,7 +501,7 @@ export class LevelScreen implements Screen {
         case 'ends': {
           const tuple = o.V.k === 'tuple';
           parts.push(headline(o.result, t(o.result === 'proved' ? 'proved' : o.result === 'refuted' ? 'refuted' : 'undecided')));
-          parts.push(h('p', { class: 'answer-echo' }, h('code', {}, `V = ${show(o.V)}${o.R ? `, R = ${show(o.R)}` : ''}`)));
+          parts.push(h('p', { class: 'answer-echo' }, h('code', {}, `${t('echoV', { v: show(o.V) })}${o.R ? ` · ${t('echoR', { r: show(o.R) })}` : ''}`)));
           parts.push(this.checkList(o.details, tuple));
           if (o.result === 'undecided') parts.push(h('p', { class: 'note' }, t('undecidedBody')));
           const fail = this.firstFailure(o.details);
@@ -707,7 +738,7 @@ export class LevelScreen implements Screen {
         ground: true,
         bands: tuple ? (f) => t('floorN', { n: f }) : undefined,
         stepLabel: t('stepAxis'),
-        yLabel: tuple ? t('floorAxis', { a: show(V.k === 'tuple' ? V.items[0]! : V), b: V.k === 'tuple' ? V.items.slice(1).map((x) => show(x)).join(', ') : '' }) : `${t('stepsLeftAxis')} V = ${show(V)}`,
+        yLabel: tuple ? t('floorAxis', { a: show(V.k === 'tuple' ? V.items[0]! : V), b: V.k === 'tuple' ? V.items.slice(1).map((x) => show(x)).join(', ') : '' }) : `${t('stepsLeftAxis')} = ${show(V)}`,
         groundLabel: t('ground'),
       });
       svg.style.display = '';

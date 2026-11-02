@@ -40,7 +40,7 @@ export function stageText(): StageText {
     callouts: { ground: t('coGround'), basement: t('coBasement'), walker: t('coWalker'), door: t('coDoor'), stair: t('coStair') },
     yes: t('stYes'),
     no: t('stNo'),
-    vUnknown: 'V = ?',
+    vUnknown: t('vUnknown'),
     stepsLeft: t('stepsLeftAxis'),
   };
 }
@@ -154,7 +154,7 @@ function hudParts(scene: StageScene, b: PlayInfo): Node[] {
   const steps = b.kind === 'step' ? b.k + 1 : b.kind === 'exit' ? (b.steps ?? b.k) : b.k;
   const parts: Node[] = [h('span', { class: 'hud-step' }, t('stepCounter', { k: steps }))];
   parts.push(h('span', { class: 'hud-state' }, fmtState(scene.vars, b.state)));
-  if (b.v) parts.push(h('span', { class: 'hud-v' }, `V = ${rank(b.v).replace(/-/g, '−')}`));
+  if (b.v) parts.push(h('span', { class: 'hud-v' }, t('hudLeft', { v: rank(b.v).replace(/-/g, '−') })));
   if (b.kind === 'exit') parts.push(h('span', { class: 'hud-done' }, t('hudEnded', { k: b.steps ?? 0 })));
   return parts;
 }
@@ -168,6 +168,8 @@ function flatText() {
     exit: t('exit'),
     forever: t('forever'),
     replay: t('replay'),
+    vUnknown: t('vUnknown'),
+    stepsLeft: t('stepsLeftAxis'),
   };
 }
 

@@ -1,6 +1,7 @@
 // The app shell: hash routes for the screens, the shared stage, the judge, language and sound.
 //   #/              title
-//   #/tutorial      chapter menu        #/tutorial/3   chapter 3
+//   #/tutorial      the tutorial        #/tutorial/3   its page 3
+//   #/intro/9       the intro before level 9 (also #/intro/10, and #/intro/9/2 for its page 2)
 //   #/levels        level select        #/level/7      a level        #/daily   today's level
 import { dailyLevelId, utcDateKey } from '../core/game.ts';
 import type { Judge } from '../core/judge.ts';
@@ -14,7 +15,8 @@ import { SelectScreen } from './select.ts';
 import { StageHost } from './stage.ts';
 import { load, save, type Saved } from './store.ts';
 import { TitleScreen } from './title.ts';
-import { ChapterScreen, TutorialMenu } from './tutorialView.ts';
+import { INTRO_LEVELS } from '../core/tutorial.ts';
+import { TutorialScreen } from './tutorialView.ts';
 
 export interface Screen {
   el: HTMLElement;
@@ -43,6 +45,8 @@ export class App {
   private screen: Screen | null = null;
   private levelCache: LevelScreen | null = null;
   private route: string | null = null;
+  /** Where an intro returns to (the level or the daily puzzle that opened it). */
+  private introReturn: Record<number, string> = {};
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -64,6 +68,13 @@ export class App {
   nav(hash: string): void {
     if (location.hash === hash) this.render();
     else location.hash = hash;
+  }
+
+  /** Show the intro before a level; its last page (and Skip) go back to `returnTo`. */
+  openIntro(level: number, returnTo: string, replace = false): void {
+    this.introReturn[level] = returnTo;
+    if (replace) location.replace(`#/intro/${level}`);
+    else location.hash = `#/intro/${level}`;
   }
 
   // ------------------------------------------------------------ judge
@@ -99,15 +110,25 @@ export class App {
     const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
     const route = parts.join('/');
     if (route === this.route && this.screen) return;
-    this.route = route;
     let next: Screen;
-    const [head, arg] = parts;
-    if (head === 'tutorial' && arg) next = new ChapterScreen(this, Number(arg) || 1);
-    else if (head === 'tutorial') next = new TutorialMenu(this);
-    else if (head === 'levels') next = new SelectScreen(this);
-    else if (head === 'daily' || (head === 'level' && arg)) {
-      const daily = head === 'daily' ? utcDateKey(new Date()) : null;
-      const id = daily ? dailyLevelId(daily, LEVELS.length) : Math.min(LEVELS.length, Math.max(1, Number(arg) || 1));
+    const [head, arg, sub] = parts;
+    const daily = head === 'daily' ? utcDateKey(new Date()) : null;
+    const levelId = head === 'daily' || (head === 'level' && arg) ? (daily ? dailyLevelId(daily, LEVELS.length) : Math.min(LEVELS.length, Math.max(1, Number(arg) || 1))) : null;
+    // The first time level 9 or 10 opens, its short intro comes first.
+    if (levelId !== null && INTRO_LEVELS.includes(levelId) && !this.saved.introsShown.includes(levelId)) {
+      this.saved.introsShown.push(levelId);
+      this.persist();
+      this.openIntro(levelId, hash, true);
+      return;
+    }
+    this.route = route;
+    if (head === 'tutorial') next = new TutorialScreen(this, { k: 'tutorial' }, (Number(arg) || 1) - 1);
+    else if (head === 'intro' && INTRO_LEVELS.includes(Number(arg))) {
+      const level = Number(arg);
+      next = new TutorialScreen(this, { k: 'intro', level, returnTo: this.introReturn[level] ?? `#/level/${level}` }, (Number(sub) || 1) - 1);
+    } else if (head === 'levels') next = new SelectScreen(this);
+    else if (levelId !== null) {
+      const id = levelId;
       const cached = this.levelCache;
       if (cached && cached.levelId === id && cached.daily === daily) next = cached;
       else {

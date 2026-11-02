@@ -409,3 +409,75 @@ export function levelById(id: number): Level {
   if (!l) throw new Error(`no level ${id}`);
   return l;
 }
+
+// ---------------------------------------------------------------- tutorial-only programs
+
+/**
+ * Programs that appear only in the tutorial and in the short intros before levels 9 and 10. They are not
+ * levels (never in LEVELS, never in the level select), so the tutorial cannot give away a level's answer.
+ * `countdown` is level 1's code on purpose: level 1 is the practice level.
+ * Their ids start at 101 so they never clash with a level; the railing and tuple gates of the game rules
+ * (open from level 9 and 10) are therefore open for them, which the railing and floors intros need.
+ */
+export type TutorialKey = 'countdown' | 'flip' | 'railing' | 'floors';
+
+const TUTORIAL_DEFS: Record<TutorialKey, LevelDef> = {
+  countdown: {
+    id: 101,
+    title: { en: 'Countdown', ko: '카운트다운' },
+    code: DEFS[0]!.code,
+    inputs: ['n'],
+    start: 'true',
+    facts: 'true',
+    kind: 'ends',
+    samples: [{ n: 3 }],
+  },
+  flip: {
+    id: 102,
+    title: { en: 'Back and forth', ko: '왔다 갔다' },
+    code: `while (x != 0) {
+  x := 1 - x
+}`,
+    inputs: ['x'],
+    start: 'true',
+    facts: 'true',
+    kind: 'never',
+    samples: [{ x: 2 }],
+  },
+  railing: {
+    id: 103,
+    title: { en: 'Railing', ko: '난간' },
+    code: `k := 10
+while (k != 0) {
+  k := k - 1
+}`,
+    inputs: [],
+    start: 'true',
+    facts: 'true',
+    kind: 'ends',
+    samples: [{}],
+  },
+  floors: {
+    id: 104,
+    title: { en: 'Floors and steps', ko: '층과 계단' },
+    code: `while (f > 0) {
+  if (s > 0) {
+    s := s - 1
+  } else {
+    f := f - 1
+    s := 5
+  }
+}`,
+    inputs: ['f', 's'],
+    start: 's >= 0',
+    startText: 's ≥ 0',
+    facts: 's >= 0',
+    factsText: 's ≥ 0',
+    kind: 'ends',
+    samples: [{ f: 2, s: 2 }],
+  },
+};
+
+export const TUTORIAL_PROGRAMS = Object.fromEntries(
+  Object.entries(TUTORIAL_DEFS).map(([k, def]) => [k, compileLevel(def)]),
+) as Record<TutorialKey, Level>;

@@ -623,7 +623,7 @@ class Stage3D implements StageRenderer {
       this.world.add(m);
     }
     const p0 = pts[0]!;
-    this.label(`${this.esc(this.text.railing)} <code>${this.esc(cond.replace(/<=/g, '≤'))}</code>`, 'l3-rail', () => new Vector3(p0.x - 0.2, p0.y + 0.35, p0.z));
+    this.label(`${this.esc(this.text.railing)} <code>${this.esc(cond.replace(/<=/g, '≤').replace(/>=/g, '≥').replace(/!=/g, '≠'))}</code>`, 'l3-rail', () => new Vector3(p0.x - 0.2, p0.y + 0.35, p0.z));
   }
 
   private buildShaft(full: Extract<StageScene, { k: 'shaft' }>): void {
@@ -650,7 +650,7 @@ class Stage3D implements StageRenderer {
       const zx1 = lastX + 0.6;
       const zone = this.block(-0.1, zx1, -deepest - 0.6, 1.3, -D / 2 - 0.1, D / 2 + 0.25, this.mats.zone!, false);
       zone.receiveShadow = false;
-      this.label(`${this.esc(this.text.zone)} <code>Z: ${this.esc(scene.zone.replace(/<=/g, '≤'))}</code>`, 'l3-zone', () => {
+      this.label(`${this.esc(this.text.zone)} <code>Z: ${this.esc(scene.zone.replace(/<=/g, '≤').replace(/>=/g, '≥').replace(/!=/g, '≠'))}</code>`, 'l3-zone', () => {
         const w = this.walker.position;
         return new Vector3(w.x + 1.2, w.y + 1.5, 0.4);
       });

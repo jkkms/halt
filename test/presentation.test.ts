@@ -1,14 +1,14 @@
-// v0.2 presentation logic: stairs and beats on the stage, zero-step samples, level groups, tutorial pages.
+// Presentation logic: stairs and beats on the stage, zero-step samples, level groups, strings, the tutorial (v0.3).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { evalBool, parseRaw } from '../src/core/expr.ts';
 import { parseV } from '../src/core/game.ts';
-import { CAMPAIGN, codePreview, GROUPS, helpChapter, introChapter, recommendedNext } from '../src/core/groups.ts';
-import { LEVELS, levelById } from '../src/core/levels.ts';
+import { CAMPAIGN, codePreview, GROUPS, helpFor, recommendedNext } from '../src/core/groups.ts';
+import { LEVELS, levelById, TUTORIAL_PROGRAMS, type TutorialKey } from '../src/core/levels.ts';
 import { guardHolds, initialState, sampleInputs, step } from '../src/core/sim.ts';
 import { allowsZeroSteps, beats, guardCheck, guardText, runScene, sampleScene, stairsWithV, walk, zeroStepSample, zeroSteps, type StageScene } from '../src/core/stage.ts';
 import { tables } from '../src/ui/i18n.ts';
-import { CHAPTERS, chapterByN, FIRST_CHAPTERS, HOOK, PURPOSE, tutScene } from '../src/core/tutorial.ts';
+import { HOOK, INTRO_LEVELS, INTROS, plainText, PURPOSE, richParts, TUTORIAL, tutScene, type Shot, type TutPage } from '../src/core/tutorial.ts';
 
 type Stairs = Extract<StageScene, { k: 'stairs' }>;
 const stairsOf = (s: StageScene): Stairs => {
@@ -65,11 +65,50 @@ describe('strings', () => {
     const { en, ko } = tables();
     assert.deepEqual(Object.keys(ko).sort(), Object.keys(en).sort());
     for (const [lang, table] of Object.entries({ en, ko })) {
-      for (const [k, v] of Object.entries(table)) {
-        if (typeof v === 'string') assert.ok(v.trim(), `${lang}.${k}`);
-        else assert.ok(Array.isArray(v) && v.length, `${lang}.${k}`);
-      }
+      for (const [k, v] of Object.entries(table)) assert.ok(typeof v === 'string' && v.trim(), `${lang}.${k}`);
     }
+  });
+
+  it('no letter V on screen: the UI says “남은 계단 수” / “steps left”', () => {
+    const { en, ko } = tables();
+    const texts: [string, string][] = [];
+    for (const [lang, table] of Object.entries({ en, ko })) for (const [k, v] of Object.entries(table)) texts.push([`${lang}.${k}`, v]);
+    for (const p of [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)])
+      for (const L of ['ko', 'en'] as const) {
+        texts.push([`page ${L}`, plainText(p.text[L])]);
+        for (const sh of p.shots) if (sh.label) texts.push([`label ${L}`, sh.label[L]]);
+      }
+    texts.push(['purpose.ko', PURPOSE.ko], ['purpose.en', PURPOSE.en]);
+    for (const [where, text] of texts) assert.ok(!/\bV\b/.test(text), `${where}: ${text}`);
+    assert.equal(ko.stepsLeft, '남은 계단 수');
+    assert.equal(en.stepsLeft, 'Steps left');
+    assert.equal(ko.verdictQ, '1단계 · 판정 — 이 반복문, 끝날까요?');
+    assert.equal(en.verdictQ, 'Step 1 · Verdict — Will this loop end?');
+    assert.equal(ko.verdictHelp, '고른 다음 2단계에서 증명해요.');
+    assert.equal(en.verdictHelp, 'Then prove it in step 2.');
+    assert.equal(ko.proofTitle, '2단계 · 증명');
+    assert.equal(en.proofTitle, 'Step 2 · Proof');
+    assert.equal(ko.proofSubEnds, '남은 계단 수 쓰기');
+    assert.equal(ko.proofSubNever, '영원히 걷는 시작값 주기');
+    assert.equal(ko.proofLocked, '1단계에서 먼저 골라 주세요');
+    assert.equal(en.proofLocked, 'Choose in step 1 first');
+    assert.equal(ko.skip, '건너뛰기');
+    assert.equal(en.skip, 'Skip');
+  });
+
+  it('“ranking function” is named only where the tutorial introduces it (page 5)', () => {
+    const { en, ko } = tables();
+    for (const table of [en, ko]) for (const [k, v] of Object.entries(table)) assert.ok(!/ranking function/i.test(v), k);
+    assert.ok(!/ranking function/i.test(PURPOSE.ko + PURPOSE.en));
+    const pages = [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
+    const naming = pages.filter((p) => /ranking function/.test(p.text.ko) || /ranking function/.test(p.text.en));
+    assert.deepEqual(naming, [TUTORIAL[4]]);
+  });
+
+  it('the counterexample for a flat step reads like the spec', () => {
+    const { ko } = tables();
+    const flat = ko.cexFlat.replace(/\{v\}/g, '2');
+    assert.ok(flat.includes('이 걸음에서 남은 계단 수가 2 → 2 그대로예요'), flat);
   });
 
   it('uses the spec’s words for the zero-step run and the hook', () => {
@@ -196,15 +235,16 @@ describe('level groups', () => {
     assert.equal(recommendedNext(Object.fromEntries(CAMPAIGN.map((id) => [id, 1]))), null);
   });
 
-  it('points every level at an existing tutorial chapter', () => {
-    for (const l of LEVELS) assert.ok(CHAPTERS.some((c) => c.n === helpChapter(l.id)));
-    assert.equal(helpChapter(9), 5);
-    assert.equal(helpChapter(10), 6);
-    assert.equal(helpChapter(5), 4);
-    assert.equal(introChapter(5), 4);
-    assert.equal(introChapter(9), 5);
-    assert.equal(introChapter(10), 6);
-    assert.equal(introChapter(1), null);
+  it('the “?” of levels 9 and 10 opens their intro; the others get the same help per range (no verdict leaks)', () => {
+    assert.deepEqual(helpFor(9), { k: 'intro', level: 9 });
+    assert.deepEqual(helpFor(10), { k: 'intro', level: 10 });
+    for (const l of LEVELS) {
+      const help = helpFor(l.id);
+      if (l.id < 9) assert.deepEqual(help, { k: 'tutorial' }, `level ${l.id}`);
+      if (l.id > 10) assert.deepEqual(help, { k: 'menu' }, `level ${l.id}`);
+    }
+    assert.deepEqual(INTRO_LEVELS, [9, 10]);
+    assert.deepEqual(Object.keys(INTROS).map(Number), [9, 10]);
   });
 
   it('code previews show the loop head and never the verdict', () => {
@@ -219,113 +259,180 @@ describe('level groups', () => {
   });
 });
 
-describe('tutorial', () => {
-  it('has the seven chapters of the spec, each with narrated pages in both languages', () => {
-    assert.deepEqual(
-      CHAPTERS.map((c) => c.n),
-      [1, 2, 3, 4, 5, 6, 7],
-    );
-    assert.deepEqual(FIRST_CHAPTERS, [1, 2, 3]);
-    for (const c of CHAPTERS) {
-      assert.ok(c.title.ko && c.title.en && c.summary.ko && c.summary.en);
-      assert.ok(c.pages.length >= 3, `chapter ${c.n}`);
-      for (const p of c.pages) assert.ok(p.text.ko.trim() && p.text.en.trim());
+describe('tutorial (v0.3: 8 pages, one flow)', () => {
+  const allPages = (): TutPage[] => [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
+  const allShots = (): Shot[] => allPages().flatMap((p) => p.shots);
+  const runOf = (sh: Shot) => {
+    assert.equal(sh.scene.k, 'run');
+    return sh.scene as Extract<Shot['scene'], { k: 'run' }>;
+  };
+
+  it('has exactly 8 pages, each narrated in Korean and English', () => {
+    assert.equal(TUTORIAL.length, 8);
+    for (const p of allPages()) {
+      assert.ok(p.text.ko.trim() && p.text.en.trim());
+      assert.ok(p.shots.length >= 1);
     }
-    assert.equal(chapterByN(4).level, 5);
-    assert.equal(chapterByN(5).level, 9);
-    assert.equal(chapterByN(6).level, 10);
+    for (const intro of Object.values(INTROS)) assert.equal(intro.pages.length, 2, `intro ${intro.level}`);
   });
 
-  it('the purpose text keeps “ranking function” in English and names both proof pieces', () => {
-    assert.ok(PURPOSE.ko.includes('ranking function'));
-    assert.ok(PURPOSE.ko.includes('부분 정확성') && PURPOSE.ko.includes('종료'));
-    assert.ok(/termination/i.test(PURPOSE.en) && /partial correctness/i.test(PURPOSE.en));
-    assert.ok(HOOK.ko && HOOK.en);
-    assert.equal(chapterByN(1).pages[0]!.extra, 'purpose');
+  it('keeps the spec’s words (spot checks; the full texts were compared with SPEC_v0.3)', () => {
+    assert.ok(TUTORIAL[0]!.text.ko.startsWith('**It Ends에 오신 여러분, 환영합니다!**'));
+    assert.ok(TUTORIAL[0]!.text.en.endsWith('Your goal is to judge and prove 18 loops, one by one.'));
+    assert.ok(TUTORIAL[2]!.text.ko.startsWith('**1단계 · 판정.**'));
+    assert.ok(TUTORIAL[3]!.text.ko.startsWith('**2단계 · 증명(끝난다).**'));
+    assert.ok(TUTORIAL[5]!.text.ko.includes('x = 2면 2, −1, 2, −1, … 같은 자리를 맴돌아요.'));
+    assert.equal(TUTORIAL[7]!.text.ko, '이제 레벨 1에서 직접 해 봐요!');
+    assert.equal(TUTORIAL[7]!.text.en, 'Now try level 1 yourself!');
+    assert.ok(INTROS[9]!.pages[1]!.text.ko.includes('**난간** `k >= 0`'));
+    assert.ok(INTROS[10]!.pages[1]!.text.en.includes('`(f, s)`'));
   });
 
-  it('every page builds a scene, and its code card matches its level', () => {
-    for (const c of CHAPTERS) {
-      for (const p of c.pages) {
-        const sc = tutScene(p.scene);
-        assert.ok(sc.k);
-        if (p.code && p.scene.k !== 'idle') assert.equal(p.code, p.scene.level, `chapter ${c.n}`);
+  it('narration markup: **bold** and `code`', () => {
+    assert.deepEqual(richParts('a **b** c `d` e'), [
+      { kind: 'text', s: 'a ' },
+      { kind: 'bold', s: 'b' },
+      { kind: 'text', s: ' c ' },
+      { kind: 'code', s: 'd' },
+      { kind: 'text', s: ' e' },
+    ]);
+    assert.equal(plainText(TUTORIAL[3]!.text.ko).includes('`'), false);
+    assert.equal(plainText(TUTORIAL[3]!.text.ko).includes('**'), false);
+  });
+
+  it('uses only tutorial-only programs, never a level (countdown is level 1’s code on purpose)', () => {
+    const levelIds = new Set(LEVELS.map((l) => l.id));
+    for (const prog of Object.values(TUTORIAL_PROGRAMS)) assert.ok(!levelIds.has(prog.id), `id ${prog.id}`);
+    assert.equal(TUTORIAL_PROGRAMS.countdown.code, levelById(1).code);
+    for (const key of ['flip', 'railing', 'floors'] as TutorialKey[])
+      for (const l of LEVELS) assert.notEqual(TUTORIAL_PROGRAMS[key].code, l.code, `${key} vs level ${l.id}`);
+    const used = new Set<string>();
+    for (const sh of allShots()) if (sh.scene.k !== 'idle') used.add(sh.scene.prog);
+    for (const p of allPages()) if (p.code) used.add(p.code);
+    assert.deepEqual([...used].sort(), ['countdown', 'flip', 'floors', 'railing']);
+  });
+
+  it('every shot builds a scene, and the code beside the stage is the program on the stage', () => {
+    for (const p of allPages()) {
+      for (const sh of p.shots) {
+        assert.ok(tutScene(sh.scene).k);
+        if (p.code && sh.scene.k !== 'idle') assert.equal(sh.scene.prog, p.code);
+        if (p.shots.length > 1) assert.ok(sh.label?.ko && sh.label.en, 'several shots: each has a label');
       }
     }
   });
 
-  it('chapter 1 shows level 2 with n = -3 running zero steps', () => {
-    const page = chapterByN(1).pages.find((p) => p.scene.k === 'run' && p.scene.level === 2);
-    assert.ok(page);
-    const sc = stairsOf(tutScene(page!.scene));
+  it('page 2: from n = 3 the walker goes down 3 stairs and leaves by the exit', () => {
+    const sc = stairsOf(tutScene(TUTORIAL[1]!.shots[0]!.scene));
+    assert.equal(runOf(TUTORIAL[1]!.shots[0]!).prog, 'countdown');
     assert.deepEqual(
-      beats(sc).map((b) => b.kind),
-      ['guard', 'exit'],
+      sc.stairs.map((s) => s.h),
+      [3, 2, 1, 0],
     );
-    assert.ok(page!.text.ko.includes('−3') && page!.text.en.includes('−3'));
+    assert.equal(sc.end, 'exit');
+    assert.deepEqual(
+      beats(sc).filter((b) => b.kind === 'step' || b.kind === 'exit').map((b) => b.kind),
+      ['step', 'step', 'step', 'exit'],
+    );
   });
 
-  it('chapter 2 animates 0 (flat), -n (below ground), n + 1 (passes), then n', () => {
-    const vs = chapterByN(2)
-      .pages.map((p) => (p.scene.k === 'run' ? p.scene.V : undefined))
-      .filter(Boolean);
-    const order = ['0', '-n', 'n + 1', 'n'];
-    let at = 0;
-    for (const v of vs) if (v === order[at]) at++;
-    assert.equal(at, order.length, `order of V in chapter 2: ${vs.join(', ')}`);
-    const bad = (V: string) => stairsOf(tutScene({ k: 'run', level: 1, start: { n: 4 }, V })).stairs.map((s) => s.bad).filter(Boolean);
-    assert.equal(bad('0')[0], 'flat');
-    assert.equal(bad('-n')[0], 'below');
-    assert.deepEqual(bad('n + 1'), []);
-    assert.deepEqual(bad('n'), []);
-    assert.ok(chapterByN(2).pages.some((p) => p.extra === 'tryV'));
+  it('page 3: the verdict buttons, with one run that ends and one that never does', () => {
+    const p = TUTORIAL[2]!;
+    assert.equal(p.extra, 'verdicts');
+    assert.equal(tutScene(p.shots[0]!.scene).k, 'stairs');
+    assert.equal(stairsOf(tutScene(p.shots[0]!.scene)).end, 'exit');
+    assert.equal(tutScene(p.shots[1]!.scene).k, 'ring');
   });
 
-  it('chapter 3 offers chips, symbols, the / and % rule, and length', () => {
-    const extras = chapterByN(3).pages.map((p) => p.extra);
-    for (const e of ['chips', 'symbols', 'divmod', 'length'] as const) assert.ok(extras.includes(e), e);
+  it('page 4: stairs labelled 3, 2, 1 for n = 3, 2, 1, and a box to type n', () => {
+    const p = TUTORIAL[3]!;
+    assert.equal(p.extra, 'tryV');
+    const sc = stairsOf(tutScene(p.shots[0]!.scene));
+    const walking = sc.stairs.filter((s) => s.walking);
+    assert.deepEqual(
+      walking.map((s) => s.v![0]),
+      [3n, 2n, 1n],
+    );
+    assert.deepEqual(
+      walking.map((s) => s.s.n),
+      [3n, 2n, 1n],
+    );
+    assert.ok(sc.stairs.every((s) => !s.bad));
   });
 
-  it('chapter 4 shows a run of level 5 that never ends, a cycle, and the zone i < n', () => {
-    const pages = chapterByN(4).pages;
-    const never = pages.find((p) => p.scene.k === 'never' && p.scene.level === 5);
-    assert.ok(never);
-    assert.equal(tutScene(never!.scene).k, 'shaft');
-    const cyc = pages.find((p) => p.scene.k === 'cycle');
-    assert.equal(tutScene(cyc!.scene).k, 'ring');
-    const zone = pages.find((p) => p.scene.k === 'never' && p.scene.zone);
-    const sc = tutScene(zone!.scene);
-    assert.ok(sc.k === 'shaft' && sc.zone === 'i < n');
-    // the zone holds on every drawn state of the run
-    if (sc.k === 'shaft') for (const s of sc.states) assert.ok(evalBool(parseRaw('i < n'), s));
-    assert.ok(pages.some((p) => p.extra === 'verdicts'));
+  it('page 5: 0 (flat stairs), then −n (below ground), then n again (good)', () => {
+    const shots = TUTORIAL[4]!.shots;
+    assert.deepEqual(
+      shots.map((sh) => runOf(sh).V),
+      ['0', '-n', 'n'],
+    );
+    const bad = (sh: Shot) => stairsOf(tutScene(sh.scene)).stairs.map((s) => s.bad).filter(Boolean);
+    assert.ok(bad(shots[0]!).length && bad(shots[0]!).every((b) => b === 'flat'));
+    assert.ok(bad(shots[1]!).length && bad(shots[1]!).every((b) => b === 'below'));
+    assert.deepEqual(bad(shots[2]!), []);
   });
 
-  it('chapter 5: the ghost state breaks V without a railing, and the railing rules it out', () => {
-    const l9 = levelById(9);
-    const page = chapterByN(5).pages.find((p) => p.scene.k === 'run' && p.scene.railing && p.scene.ghost);
-    assert.ok(page && page.scene.k === 'run');
-    const sc = stairsOf(tutScene(page!.scene));
-    const g = sc.ghost!;
-    assert.ok(guardHolds(l9, g.s), 'the loop would keep running there');
-    assert.equal(g.bad, 'below');
-    const R = parseRaw(sc.railing!);
-    assert.equal(evalBool(R, g.s), false, 'outside the railing');
-    for (const st of sc.stairs) assert.ok(evalBool(R, st.s), 'the run stays inside the railing');
+  it('page 6: from x = 2 the values go 2, −1, 2, −1, … around the same spot', () => {
+    const sh = TUTORIAL[5]!.shots[0]!;
+    assert.deepEqual(sh.scene, { k: 'cycle', prog: 'flip', start: { x: 2 } });
+    const sc = tutScene(sh.scene);
+    assert.equal(sc.k, 'ring');
+    if (sc.k === 'ring') {
+      assert.deepEqual(sc.prefix, []);
+      assert.deepEqual(
+        sc.cycle.map((s) => s.x),
+        [2n, -1n],
+      );
+    }
   });
 
-  it('chapter 6: x + y steps up on the minute rollover, (x, y) does not', () => {
-    const pages = chapterByN(6).pages;
-    const xy = pages.find((p) => p.scene.k === 'run' && p.scene.V === 'x + y');
-    assert.equal(stairsOf(tutScene(xy!.scene)).stairs[0]!.bad, 'up');
-    const tup = pages.find((p) => p.scene.k === 'run' && p.scene.V === '(x, y)');
-    assert.ok(stairsOf(tutScene(tup!.scene)).stairs.every((s) => !s.bad));
+  it('page 7 has the input box with variable buttons; page 8 the level-1 card', () => {
+    assert.equal(TUTORIAL[6]!.extra, 'chips');
+    assert.equal(TUTORIAL[7]!.extra, 'levelCard');
+    assert.ok(TUTORIAL[0]!.wide);
   });
 
-  it('the stairs drawn for a V agree with stairsWithV', () => {
-    const l1 = levelById(1);
-    const w = walk(l1, initialState(l1, { n: 3n }), 10);
-    const a = stairsWithV(l1, parseV(l1, 'n'), w.states).map((s) => s.h);
-    assert.deepEqual(a, [3, 2, 1, 0]);
+  it('railing intro: k = −5 falls into the basement; the railing k >= 0 holds on the real run and leaves k = −5 out', () => {
+    const [p1, p2] = INTROS[9]!.pages;
+    const real = stairsOf(tutScene(p1!.shots[0]!.scene));
+    assert.deepEqual(
+      real.stairs.map((s) => s.s.k),
+      [10n, 9n, 8n, 7n, 6n, 5n, 4n, 3n, 2n, 1n, 0n],
+    );
+    const ghostRun = stairsOf(tutScene(p1!.shots[1]!.scene));
+    assert.equal(ghostRun.stairs[0]!.s.k, -5n);
+    assert.ok(ghostRun.stairs.every((s) => s.walking && s.bad === 'below'), 'still walking, below ground');
+    assert.equal(ghostRun.end, 'more');
+    const fenced = stairsOf(tutScene(p2!.shots[0]!.scene));
+    const R = parseRaw(fenced.railing!);
+    assert.equal(fenced.railing, 'k >= 0');
+    for (const st of fenced.stairs) assert.ok(evalBool(R, st.s), 'the run stays inside the railing');
+    assert.equal(fenced.ghost!.s.k, -5n);
+    assert.equal(evalBool(R, fenced.ghost!.s), false, 'k = −5 is outside the railing');
+    assert.equal(stairsOf(tutScene(p2!.shots[1]!.scene)).ghost, undefined, 'then the ghost is gone');
+  });
+
+  it('floors intro: (f, s) goes down a floor after the last step; f + s steps up there', () => {
+    const [p1, p2] = INTROS[10]!.pages;
+    const tuple = stairsOf(tutScene(p2!.shots[0]!.scene));
+    assert.ok(tuple.tuple);
+    assert.ok(tuple.stairs.every((s) => !s.bad));
+    const floors = tuple.stairs.filter((s) => s.walking).map((s) => Number(s.s.f));
+    assert.deepEqual(floors, [2, 2, 2, 1, 1, 1, 1, 1, 1]);
+    const after = tuple.stairs.find((s) => s.s.f === 1n)!;
+    assert.equal(after.s.s, 5n, 'the floor below starts at its top (step 5)');
+    assert.deepEqual(
+      p1!.shots.map((sh) => runOf(sh).V),
+      ['(f, s)', 'f + s'],
+    );
+    // f + s goes up exactly where the floor changes: (2, 0) → (1, 5) and (1, 0) → (0, 5)
+    const sum = stairsOf(tutScene(p1!.shots[1]!.scene));
+    assert.deepEqual(
+      sum.stairs.filter((s) => s.bad).map((s) => [s.bad, Number(s.s.f), Number(s.s.s)]),
+      [
+        ['up', 2, 0],
+        ['up', 1, 0],
+      ],
+    );
   });
 });
