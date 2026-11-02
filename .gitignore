@@ -1,0 +1,7 @@
+node_modules/
+dist/
+public/z3/
+public/coi-serviceworker.js
+*.log
+.DS_Store
+test-results/

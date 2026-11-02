@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>It Ends</title>
+    <meta name="description" content="A browser puzzle game about proving that loops terminate, with Z3 as the judge." />
+    <meta name="theme-color" content="#f5f3ee" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M3 6h7v6h7v6h7v6h6' fill='none' stroke='%232f5bd3' stroke-width='3'/%3E%3Cpath d='M1 28h30' stroke='%231d232b' stroke-width='2'/%3E%3C/svg%3E" />
+    <!-- Makes the page cross-origin isolated on hosts that cannot send COOP/COEP headers (GitHub Pages).
+         Z3 needs SharedArrayBuffer. The first visit registers the worker and reloads once. -->
+    <script src="./coi-serviceworker.js"></script>
+    <!-- z3-solver's browser entry reads Emscripten's global through Node's `global`. -->
+    <script>globalThis.global = globalThis;</script>
+  </head>
+  <body>
+    <div id="app"><p class="boot">It Ends…</p><noscript>It Ends needs JavaScript.</noscript></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
