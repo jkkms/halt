@@ -139,8 +139,19 @@ export class ChapterScreen implements Screen {
       ),
     );
     const prev = h('button', { type: 'button', class: 'btn ghost', disabled: this.page === 0, onclick: () => this.go(this.page - 1) }, t('prevPage'));
+    // The last page of a chapter leads straight on: to the next chapter, or after the last one to a level.
+    const nextCh = CHAPTERS.find((c) => c.n === this.ch.n + 1);
     const next = last
-      ? h('button', { type: 'button', class: 'btn primary', 'data-role': 'finish', onclick: () => this.finish() }, `✓ ${t('finishCh')}`)
+      ? h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn primary',
+            'data-role': 'next-chapter',
+            onclick: () => this.finish(nextCh ? `#/tutorial/${nextCh.n}` : `#/level/${recommendedNext(this.app.saved.best) ?? 1}`),
+          },
+          nextCh ? t('nextChapterShort') : t('startPlaying'),
+        )
       : h('button', { type: 'button', class: 'btn primary', 'data-role': 'next', onclick: () => this.go(this.page + 1) }, `${t('nextPage')} →`);
     const body: (Node | null)[] = [];
     if (p.extra === 'purpose') body.push(h('p', { class: 'narr-hook' }, HOOK[L]), h('p', { class: 'narr-purpose' }, PURPOSE[L]));
@@ -254,21 +265,11 @@ export class ChapterScreen implements Screen {
     }
   }
 
-  private finish(): void {
+  private finish(target: string): void {
     const app = this.app;
     if (!app.saved.chapters.includes(this.ch.n)) app.saved.chapters.push(this.ch.n);
     app.persist();
-    const L = lang();
-    const after = this.narr.querySelector('.narr-after');
-    if (!after) return;
-    const nextCh = CHAPTERS.find((c) => c.n === this.ch.n + 1);
-    const btns: Node[] = [h('span', { class: 'done-note' }, `✓ ${t('chDone')}`)];
-    if (nextCh) btns.push(h('a', { class: 'btn primary', href: `#/tutorial/${nextCh.n}`, 'data-role': 'next-chapter' }, t('nextChapter', { n: nextCh.n, title: nextCh.title[L] })));
-    const lvl = this.ch.level ?? (this.ch.n <= 3 ? recommendedNext(app.saved.best) ?? 1 : null);
-    if (lvl) btns.push(h('a', { class: `btn ${nextCh ? 'ghost' : 'primary'}`, href: `#/level/${lvl}` }, t('playLevelN', { n: lvl })));
-    btns.push(h('a', { class: 'btn ghost', href: '#/tutorial' }, t('backMenu')));
-    after.replaceChildren(...btns);
-    after.classList.add('on');
-    (after.querySelector('a.btn') as HTMLElement | null)?.focus({ preventScroll: true });
+    location.hash = target;
   }
+
 }
