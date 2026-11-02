@@ -2,6 +2,7 @@ node_modules/
 dist/
 public/z3/
 public/coi-serviceworker.js
+public/fonts/
 *.log
 .DS_Store
 test-results/

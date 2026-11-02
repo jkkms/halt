@@ -1,7 +1,8 @@
-// The side view of the building: stairs drawn from the player's V, the walker, ground and basement.
+// The flat side view of v0.1 (SVG). v0.2 uses it only when WebGL is not available.
 import { clear, h, s } from './dom.ts';
 import { rank, stateShort } from './format.ts';
 import type { State } from '../core/sim.ts';
+import { heightMap } from '../core/stage.ts';
 
 export interface StairPoint {
   s: State;
@@ -36,23 +37,7 @@ const LEFT = 46;
 const RIGHT = 26;
 const MAX_DRAW = 60;
 
-/** Display height of a V value. Tuples: floor = first part, position inside the floor = rank of the rest. */
-export function heightMap(all: bigint[][]): (v: bigint[]) => number {
-  if (all.every((v) => v.length <= 1)) return (v) => Number(v[0] ?? 0n);
-  const key = (v: bigint[]) => v.slice(1).join(',');
-  const rests = new Map<string, bigint[]>();
-  for (const v of all) rests.set(key(v), v.slice(1));
-  const sorted = [...rests.entries()].sort(([, a], [, b]) => {
-    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! < b[i]! ? -1 : 1;
-    return 0;
-  });
-  const rankOf = new Map(sorted.map(([k], i) => [k, i]));
-  const n = sorted.length;
-  return (v) => {
-    const r = rankOf.get(key(v)) ?? 0;
-    return Number(v[0]) + (n <= 1 ? 0.5 : 0.1 + 0.8 * (r / (n - 1)));
-  };
-}
+export { heightMap };
 
 function niceStep(range: number, maxTicks: number): number {
   const raw = range / Math.max(1, maxTicks);

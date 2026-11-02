@@ -22,6 +22,10 @@ export interface LevelDef {
   factsText?: string;
   kind: Kind;
   par?: number;
+  /**
+   * Start states for the drawings (3–4). Wherever the start condition allows it, one of them makes the
+   * loop condition false right away: the loop runs zero times (checked before every step, even the first).
+   */
   samples: Record<string, number>[];
 }
 
@@ -52,7 +56,7 @@ const DEFS: LevelDef[] = [
     facts: 'true',
     kind: 'ends',
     par: 1,
-    samples: [{ n: 5 }, { n: 3 }, { n: 1 }],
+    samples: [{ n: 5 }, { n: 3 }, { n: 1 }, { n: 0 }],
   },
   {
     id: 2,
@@ -66,7 +70,7 @@ while (i < n) {
     facts: 'true',
     kind: 'ends',
     par: 3,
-    samples: [{ n: 4 }, { n: 2 }, { n: 0 }],
+    samples: [{ n: 4 }, { n: 2 }, { n: 0 }, { n: -3 }],
   },
   {
     id: 3,
@@ -84,6 +88,7 @@ while (i < n) {
       { lo: 0, hi: 6 },
       { lo: -6, hi: -1 },
       { lo: 2, hi: 3 },
+      { lo: 4, hi: 1 },
     ],
   },
   {
@@ -106,6 +111,7 @@ while (i < n) {
       { lo: 0, hi: 8, t: 5 },
       { lo: 0, hi: 8, t: 0 },
       { lo: -5, hi: 3, t: 1 },
+      { lo: 3, hi: 3, t: 0 },
     ],
   },
   {
@@ -173,7 +179,7 @@ while (i < n) {
     start: 'true',
     facts: 'true',
     kind: 'never',
-    samples: [{ x: 4 }, { x: 1 }, { x: -3 }],
+    samples: [{ x: 4 }, { x: 1 }, { x: -3 }, { x: 0 }],
   },
   {
     id: 9,
@@ -233,6 +239,7 @@ while (i != n) {
       { x: 2, y: 1, m: 3 },
       { x: 1, y: 2, m: 2 },
       { x: 3, y: 0, m: 1 },
+      { x: 0, y: 2, m: 3 },
     ],
   },
   {
@@ -255,6 +262,7 @@ while (i != n) {
       { lo: 0, hi: 8, t: 0 },
       { lo: 0, hi: 8, t: 5 },
       { lo: -3, hi: 4, t: 9 },
+      { lo: 2, hi: 2, t: 0 },
     ],
   },
   {
@@ -283,6 +291,7 @@ while (i != n) {
       { a: 0, b: 0, c: 1, d: 2 },
       { a: 0, b: 0, c: 3, d: 0 },
       { a: 0, b: 1, c: 0, d: 0 },
+      { a: 0, b: 0, c: 0, d: 0 },
     ],
   },
   {
@@ -335,6 +344,7 @@ while (i != n) {
       { x: 7, y: 2 },
       { x: 5, y: 5 },
       { x: 4, y: 1 },
+      { x: -1, y: 2 },
     ],
   },
   {
@@ -351,6 +361,7 @@ while (i != n) {
       { x: 7, y: 2 },
       { x: 3, y: 0 },
       { x: 2, y: -1 },
+      { x: 0, y: 3 },
     ],
   },
   {
@@ -367,7 +378,7 @@ while (i != n) {
     start: 'n >= 1',
     facts: 'true',
     kind: 'open',
-    samples: [{ n: 6 }, { n: 7 }, { n: 27 }],
+    samples: [{ n: 6 }, { n: 7 }, { n: 27 }, { n: 1 }],
   },
 ];
 

@@ -16,6 +16,9 @@ const types = {
   '.gz': 'application/gzip',
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+  '.png': 'image/png',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 createServer((req, res) => {
