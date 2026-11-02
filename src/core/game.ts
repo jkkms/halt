@@ -255,5 +255,5 @@ export function dailyLevelId(key: string, count: number): number {
 }
 
 export function shareText(key: string, levelId: number, marks: string[], length: number | null): string {
-  return `It Ends #${key} L${levelId} ${marks.join('')}${length !== null ? ` ${length} chars` : ''}`;
+  return `Halt? #${key} L${levelId} ${marks.join('')}${length !== null ? ` ${length} chars` : ''}`;
 }

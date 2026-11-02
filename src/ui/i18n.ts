@@ -154,7 +154,7 @@ const en = {
     'Right. For every start anyone has tried, this loop reaches 1 and stops. But nobody has proved that it always does: this is the Collatz conjecture, open since 1937.',
   endBody2:
     'Termination in general is undecidable: by the halting problem, no program can take every loop and correctly say whether it ends. So every termination prover, including you with Z3, must sometimes say “I don’t know”. This specific loop is not known to be undecidable; it is simply an open problem.',
-  endBody3: 'Thank you for playing It Ends.',
+  endBody3: 'Thank you for playing Halt?.',
   close: 'Close',
 
   // v0.2 screens
@@ -412,7 +412,7 @@ const ko: Strings = {
   endBody1: '맞아요. 지금까지 시도한 모든 시작값에서 이 반복문은 1에 닿고 멈춰요. 하지만 언제나 그렇다는 증명은 아무도 못 했어요. 1937년부터 풀리지 않은 콜라츠 추측이에요.',
   endBody2:
     '일반적으로 종료 여부는 결정할 수 없는 문제예요. 정지 문제 때문에, 모든 반복문을 받아서 끝나는지 항상 옳게 말해 주는 프로그램은 없어요. 그래서 Z3와 함께하는 여러분을 포함한 모든 종료 증명기는 가끔 “모르겠다”고 말할 수밖에 없어요. 다만 이 반복문 자체가 결정 불가능하다고 알려진 건 아니고, 그냥 아직 풀리지 않은 문제예요.',
-  endBody3: 'It Ends를 끝까지 해 주셔서 고마워요.',
+  endBody3: 'Halt?를 끝까지 해 주셔서 고마워요.',
   close: '닫기',
 
   // v0.2 화면

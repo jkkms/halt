@@ -33,7 +33,7 @@ export class TitleScreen implements Screen {
     const content = h(
       'div',
       { class: 'title-content' },
-      h('h1', { class: 'wordmark' }, logoMark('logo big'), h('span', {}, 'It Ends')),
+      h('h1', { class: 'wordmark' }, logoMark('logo big'), h('span', {}, 'Halt?')),
       h('p', { class: 'hook' }, HOOK[L]),
       h('p', { class: 'purpose' }, PURPOSE[L]),
       h(
@@ -46,7 +46,7 @@ export class TitleScreen implements Screen {
       h(
         'div',
         { class: 'title-foot' },
-        h('a', { href: 'https://github.com/jkkms/it-ends', target: '_blank', rel: 'noopener' }, t('github')),
+        h('a', { href: 'https://github.com/jkkms/halt', target: '_blank', rel: 'noopener' }, t('github')),
         h('span', {}, t('footLine')),
       ),
     );

@@ -6,7 +6,6 @@
 import {
   ACESFilmicToneMapping,
   BoxGeometry,
-  CapsuleGeometry,
   CircleGeometry,
   Color,
   ConeGeometry,
@@ -25,7 +24,6 @@ import {
   PlaneGeometry,
   PointLight,
   Scene,
-  SphereGeometry,
   SRGBColorSpace,
   TorusGeometry,
   Vector3,
@@ -36,6 +34,8 @@ import { beats, type Bad, type StageScene } from '../core/stage.ts';
 import type { State } from '../core/sim.ts';
 import type { Callout } from '../core/tutorial.ts';
 import type { PlayInfo, RendererHooks, ShowOptions, StageRenderer, StageText } from './stageTypes.ts';
+import { Figure } from './figure3d.ts';
+import { climb, exit, fall, fallIn, guard, sstep, stand, stepMs, stumble, walk, type Placed, type Side } from './gait.ts';
 
 const SW = 1; // run of one stair (x)
 const D = 1.9; // width of the stairs (z)
@@ -58,11 +58,7 @@ const PAL = {
   winLit: 0xffb547,
   winDim: 0x3d3452,
   door: 0xffc46b,
-  coat: 0x1f6c76,
-  scarf: 0xf2a541,
-  skin: 0xf2d6b8,
   legs: 0x2a2633,
-  lantern: 0xffcf6e,
   rail: 0xe6a94a,
   zone: 0x8f9cff,
   skyline: 0x1b2552,
@@ -104,7 +100,6 @@ interface Label {
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 const hash = (a: number, b: number) => {
   const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
   return x - Math.floor(x);
@@ -123,9 +118,9 @@ class Stage3D implements StageRenderer {
   private box = new BoxGeometry(1, 1, 1);
   private mats: Record<string, MeshStandardMaterial | MeshBasicMaterial> = {};
   private walker = new Group();
-  private body = new Group();
-  private legs: Group[] = [];
-  private lanternLight: PointLight;
+  private figure = new Figure();
+  private at = new Vector3();
+  private dir = new Vector3();
   private sun: DirectionalLight;
   private doorLight: PointLight | null = null;
   private doorGlow: MeshBasicMaterial | null = null;
@@ -204,11 +199,7 @@ class Stage3D implements StageRenderer {
       ghost: std(PAL.ghost, { transparent: true, opacity: 0.38, depthWrite: false }),
       winLit: std(0x40280f, { emissive: new Color(PAL.winLit), emissiveIntensity: 0.95 }),
       winDim: std(PAL.winDim, { roughness: 0.6 }),
-      coat: std(PAL.coat, { roughness: 0.7 }),
-      scarf: std(PAL.scarf, { roughness: 0.7 }),
-      skin: std(PAL.skin, { roughness: 0.6 }),
       legs: std(PAL.legs),
-      lantern: new MeshBasicMaterial({ color: PAL.lantern }),
       rail: std(PAL.rail, { metalness: 0.6, roughness: 0.35 }),
       zone: new MeshBasicMaterial({ color: PAL.zone, transparent: true, opacity: 0.13, depthWrite: false }),
       skyline: new MeshBasicMaterial({ color: PAL.skyline }),
@@ -217,40 +208,8 @@ class Stage3D implements StageRenderer {
       tower: std(PAL.tower),
     };
 
-    // The walker: coat, scarf, head, two legs, and a lantern that lights the stairs around it.
-    const coat = new Mesh(new CapsuleGeometry(0.15, 0.28, 4, 12), this.mats.coat);
-    coat.position.y = 0.45;
-    const scarf = new Mesh(new TorusGeometry(0.12, 0.04, 8, 16), this.mats.scarf);
-    scarf.rotation.x = Math.PI / 2;
-    scarf.position.y = 0.66;
-    const head = new Mesh(new SphereGeometry(0.12, 18, 14), this.mats.skin);
-    head.position.y = 0.8;
-    const hat = new Mesh(new CylinderGeometry(0.085, 0.13, 0.08, 16), this.mats.scarf);
-    hat.position.y = 0.92;
-    for (const m of [coat, scarf, head, hat]) {
-      m.castShadow = true;
-      this.body.add(m);
-    }
-    for (const z of [-0.07, 0.07]) {
-      const hip = new Group();
-      hip.position.set(0, 0.3, z);
-      const leg = new Mesh(new CapsuleGeometry(0.05, 0.2, 4, 8), this.mats.legs);
-      leg.position.y = -0.15;
-      leg.castShadow = true;
-      hip.add(leg);
-      this.legs.push(hip);
-      this.body.add(hip);
-    }
-    const lantern = new Group();
-    lantern.position.set(0.2, 0.42, 0.1);
-    const glass = new Mesh(new SphereGeometry(0.055, 12, 10), this.mats.lantern);
-    const cap = new Mesh(new CylinderGeometry(0.03, 0.05, 0.04, 10), this.mats.legs);
-    cap.position.y = 0.065;
-    lantern.add(glass, cap);
-    this.lanternLight = new PointLight(PAL.lantern, 2.2, 3.2, 1.6);
-    lantern.add(this.lanternLight);
-    this.body.add(lantern);
-    this.walker.add(this.body);
+    // The walker: a person with a lantern that lights the stairs around it (src/ui/figure3d.ts).
+    this.walker.add(this.figure.root);
     this.scene.add(this.walker);
 
     this.ro = new ResizeObserver(() => this.resize());
@@ -306,6 +265,7 @@ class Stage3D implements StageRenderer {
     this.ro.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.clearWorld();
+    this.figure.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -568,7 +528,8 @@ class Stage3D implements StageRenderer {
     for (const b of beats(scene)) {
       if (b.kind === 'guard') segs.push({ kind: 'guard', from: b.k, to: b.k, dur: 520, lines: [scene.whileLine], holds: b.holds });
       else if (b.kind === 'step') {
-        const dur = b.fall ? 1000 : b.bad === 'flat' ? 1050 : b.bad === 'up' ? 800 : 560;
+        const dy = (this.nodes[b.k + 1]?.p.y ?? 0) - (this.nodes[b.k]?.p.y ?? 0);
+        const dur = b.fall ? 1000 : b.bad === 'flat' ? 1050 : b.bad === 'up' ? 800 : stepMs(dy);
         segs.push({ kind: 'step', from: b.k, to: b.k + 1, dur, lines: b.lines, bad: b.bad, fall: b.fall });
       } else if (b.kind === 'exit' && scene.end === 'cut') segs.push({ kind: 'cut', from: b.k, to: b.k, dur: 1500, lines: [] });
       else if (b.kind === 'exit') segs.push({ kind: 'exit', from: b.k, to: b.k, dur: 1150, lines: [], steps: b.steps });
@@ -663,7 +624,7 @@ class Stage3D implements StageRenderer {
     const segs: Seg[] = [{ kind: 'start', from: 0, to: 0, dur: 500, lines: [] }];
     for (let k = 0; k < n; k++) {
       segs.push({ kind: 'guard', from: k, to: k, dur: k < 4 ? 480 : 260, lines: [scene.whileLine], holds: true });
-      if (k + 1 < n) segs.push({ kind: 'step', from: k, to: k + 1, dur: k < 4 ? 560 : 360, lines: scene.lines[k] ?? [] });
+      if (k + 1 < n) segs.push({ kind: 'step', from: k, to: k + 1, dur: stepMs(-drop, k < 4 ? 560 : 420), lines: scene.lines[k] ?? [] });
     }
     segs.push({ kind: 'more', from: n - 1, to: n - 1, dur: 1200, lines: [] });
     segs.push({ kind: 'pause', from: n - 1, to: n - 1, dur: 800, lines: [] });
@@ -709,9 +670,10 @@ class Stage3D implements StageRenderer {
     this.label('∞', 'l3-inf big', () => new Vector3(cx, top + 0.9, 0.4));
     this.bounds = { x0: -R - 1.4, x1: R + 1.4, y0: -0.4, y1: top + 1.5 };
     const segs: Seg[] = [{ kind: 'start', from: 0, to: 0, dur: 400, lines: [] }];
+    const chord = 2 * R * Math.sin(Math.PI / tiles); // a longer walk between tiles takes longer
     for (let i = 0; i < tiles; i++) {
       segs.push({ kind: 'guard', from: i, to: i, dur: 420, lines: [scene.whileLine], holds: true });
-      segs.push({ kind: 'step', from: i, to: (i + 1) % tiles, dur: 620, lines: scene.lines[i % len] ?? [] });
+      segs.push({ kind: 'step', from: i, to: (i + 1) % tiles, dur: Math.round(620 * Math.max(1, chord) ** 0.75), lines: scene.lines[i % len] ?? [] });
     }
     this.segs = segs;
   }
@@ -749,7 +711,6 @@ class Stage3D implements StageRenderer {
     this.ringSteps = 0;
     this.walker.visible = this.nodes.length > 0;
     this.walker.scale.setScalar(1);
-    this.body.rotation.set(0, 0, 0);
     this.walker.rotation.set(0, 0, 0);
     if (this.hole) this.hole.visible = false;
     if (this.nodes[0]) this.walker.position.copy(this.nodes[0].p);
@@ -834,7 +795,15 @@ class Stage3D implements StageRenderer {
     }
   }
 
-  private pose(): void {
+  /** Which way the walker faces on the ring when it walks from tile i to the next one. */
+  private heading(i: number): number {
+    const n = this.nodes.length;
+    const a = this.nodes[((i % n) + n) % n]!.p;
+    const b = this.nodes[(((i + 1) % n) + n) % n]!.p;
+    return Math.atan2(-(b.z - a.z), b.x - a.x);
+  }
+
+  private pose(now: number): void {
     const s = this.segs[this.seg];
     if (!s || !this.nodes.length) return;
     const u = clamp(this.t / s.dur, 0, 1);
@@ -842,86 +811,82 @@ class Stage3D implements StageRenderer {
     const b = this.nodes[s.to] ?? a;
     const w = this.walker;
     const reduced = this.hooks.reducedMotion();
-    let swing = 0;
-    this.body.rotation.set(0, 0, 0);
+    // the foot behind (it moves first) alternates from stair to stair
+    const ctx = { parity: ((this.ring ? this.ringSteps : s.from) % 2) as Side, now, reduced };
+    const origin = this.at.copy(a.p);
+    const dir = this.dir.set(1, 0, 0);
+    let yaw = this.ring ? this.heading(s.from) : 0;
+    let placed: Placed | null = null;
     w.visible = true;
     w.scale.setScalar(1);
-    const face = (dx: number, dz: number) => {
-      if (Math.abs(dx) + Math.abs(dz) > 1e-6) w.rotation.y = Math.atan2(-dz, dx);
-    };
-    if (!this.ring) w.rotation.y = 0;
     switch (s.kind) {
       case 'step': {
-        if (this.ring) face(b.p.x - a.p.x, b.p.z - a.p.z);
+        dir.set(b.p.x - a.p.x, 0, b.p.z - a.p.z);
+        const len = dir.length() || 1;
+        dir.divideScalar(len);
+        if (this.ring) yaw = Math.atan2(-dir.z, dir.x);
+        const o = { ...ctx, dy: b.p.y - a.p.y, len, dur: s.dur };
         if (s.fall) {
-          const split = 0.38;
-          if (u < split) {
-            const e = ease(u / split);
-            w.position.set(lerp(a.p.x, b.p.x, e), Math.max(a.p.y, 0.02) + Math.sin(e * Math.PI) * 0.15, lerp(a.p.z, b.p.z, e));
-            swing = Math.sin(u * 30);
-          } else {
-            const e = ((u - split) / (1 - split)) ** 2;
-            w.position.set(b.p.x, lerp(Math.max(a.p.y, 0.02), b.p.y, e), b.p.z);
-            this.body.rotation.z = -e * 0.5 * (1 - e);
-            this.showHole(b.p.x);
-          }
-        } else if (s.bad === 'flat') {
-          const split = 0.5;
-          if (u < split) {
-            const e = ease(u / split);
-            w.position.set(lerp(a.p.x, b.p.x, e), lerp(a.p.y, b.p.y, e) + Math.sin(e * Math.PI) * 0.14, lerp(a.p.z, b.p.z, e));
-            swing = Math.sin(u * 28);
-          } else {
-            const k = (u - split) / (1 - split);
-            w.position.copy(b.p);
-            this.body.rotation.z = reduced ? -0.2 : -Math.sin(k * Math.PI * 3) * 0.42 * (1 - k);
-          }
-        } else {
-          const e = ease(u);
-          const rise = Math.max(0, b.p.y - a.p.y);
-          w.position.set(lerp(a.p.x, b.p.x, e), lerp(a.p.y, b.p.y, e) + Math.sin(e * Math.PI) * (0.16 + rise * 0.6), lerp(a.p.z, b.p.z, e));
-          swing = Math.sin(u * Math.PI * 2);
-        }
+          placed = fall(u, o);
+          if (u > 0.28) this.showHole(b.p.x);
+        } else if (s.bad === 'flat') placed = stumble(u, o);
+        else if (o.dy > 0.12) placed = climb(u, o);
+        else placed = walk(u, o);
         break;
       }
-      case 'fallIn': {
-        const e = u * u;
-        w.position.set(a.p.x, lerp(0.05, a.p.y, e), a.p.z);
+      case 'fallIn':
+        // from the ground above, through the floor, down to the first stair
+        origin.set(a.p.x, 0, a.p.z);
+        placed = fallIn(u, { ...ctx, dy: a.p.y });
         this.showHole(a.p.x);
         break;
-      }
       case 'exit': {
         // turn to the door, walk in, and disappear into the light
-        const doorZ = WALL + 0.2;
-        if (u < 0.2) {
-          w.position.copy(a.p);
-          w.rotation.y = (u / 0.2) * (Math.PI / 2);
-        } else {
-          const e = ease((u - 0.2) / 0.8);
-          w.rotation.y = Math.PI / 2;
-          w.position.set(a.p.x, a.p.y, lerp(a.p.z, doorZ, e));
-          swing = Math.sin(u * 26);
-          if (e > 0.7) w.scale.setScalar(Math.max(0.001, 1 - (e - 0.7) / 0.3));
-        }
+        const len = a.p.z - (WALL + 0.2);
+        const r = exit(u, { ...ctx, len });
+        yaw = (r.turn * Math.PI) / 2;
+        dir.set(0, 0, -1);
+        placed = r;
+        const e = r.x / len;
+        if (e > 0.7) w.scale.setScalar(Math.max(0.001, 1 - (e - 0.7) / 0.3));
         if (this.doorGlow) this.doorGlow.color.setHex(PAL.door).multiplyScalar(1 + u * 0.6);
         break;
       }
-      case 'pause': {
-        const last = this.segs[this.seg - 1];
-        if (last?.kind === 'exit') w.visible = false;
-        else w.position.copy(a.p);
+      case 'guard': {
+        // on the ring, turn toward the next tile while checking
+        if (this.ring) {
+          const from = this.segs[this.seg - 1]?.kind === 'step' ? this.heading(s.from - 1) : yaw;
+          const d = ((((yaw - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+          yaw = from + d * sstep(0.15, 0.85, u);
+        }
+        placed = { pose: guard(u, { ...ctx, holds: !!s.holds, turning: this.ring }), x: 0, y: 0 };
         break;
       }
-      default:
-        w.position.copy(a.p);
-        if (s.kind === 'guard' && !reduced) this.body.position.y = Math.sin(u * Math.PI) * 0.04;
+      case 'pause':
+        if (this.segs[this.seg - 1]?.kind === 'exit') w.visible = false;
+        else placed = { pose: stand({ ...ctx, look: Math.sin(Math.PI * u) }), x: 0, y: 0 };
+        break;
+      case 'start':
+        // a run that starts below ground: stand on the ground above it (the fall comes next)
+        if (this.segs[this.seg + 1]?.kind === 'fallIn') origin.set(a.p.x, 0, a.p.z);
+        placed = { pose: stand({ ...ctx, look: this.model?.k === 'idle' ? Math.sin(Math.PI * u) : 0 }), x: 0, y: 0 };
+        break;
+      case 'more':
+        // the walk goes on: a look down the way ahead
+        placed = { pose: stand({ ...ctx, down: 0.3 * Math.sin(Math.PI * u) }), x: 0, y: 0 };
+        break;
+      case 'cut':
+        // the counterexample ends here; below ground, a look up at the hole
+        placed = { pose: stand({ ...ctx, look: 0.6 * Math.sin(Math.PI * u), down: a.bad === 'below' ? -0.4 * Math.sin(Math.PI * u) : 0 }), x: 0, y: 0 };
+        break;
     }
-    if (s.kind !== 'guard') this.body.position.y = 0;
-    const amp = reduced ? 0.15 : 0.55;
-    this.legs[0]!.rotation.z = swing * amp;
-    this.legs[1]!.rotation.z = -swing * amp;
-    const idx = s.kind === 'step' && u > 0.5 ? s.to : s.from;
-    this.walkerIndex = idx;
+    if (placed) {
+      w.position.copy(origin).addScaledVector(dir, placed.x);
+      w.position.y += placed.y;
+      w.rotation.y = yaw;
+      this.figure.apply(placed.pose);
+    }
+    this.walkerIndex = s.kind === 'step' && u > 0.5 ? s.to : s.from;
   }
 
   private showHole(x: number): void {
@@ -1027,10 +992,10 @@ class Stage3D implements StageRenderer {
     this.last = now;
     if (!this.active || document.hidden) return;
     this.advance(dt);
-    this.pose();
+    this.pose(now);
     this.updateCamera(dt / 1000);
     if (this.doorLight) this.doorLight.intensity = 1.4 + Math.sin(now / 500) * 0.15;
-    this.lanternLight.intensity = 2 + Math.sin(now / 170) * 0.25;
+    this.figure.light.intensity = 2 + Math.sin(now / 170) * 0.25;
     this.renderer.render(this.scene, this.camera);
     this.updateLabels();
     this.updateBubble();

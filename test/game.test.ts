@@ -51,8 +51,8 @@ describe('daily puzzle', () => {
     assert.equal(utcDateKey(new Date('2026-11-03T08:30:00+09:00')), '2026-11-02');
   });
   it('share text matches the spec format and never contains the answer', () => {
-    assert.equal(shareText('2026-11-03', 10, ['⬇', '⬇', '✅'], 5), 'It Ends #2026-11-03 L10 ⬇⬇✅ 5 chars');
-    assert.equal(shareText('2026-11-03', 12, ['✅'], null), 'It Ends #2026-11-03 L12 ✅');
+    assert.equal(shareText('2026-11-03', 10, ['⬇', '⬇', '✅'], 5), 'Halt? #2026-11-03 L10 ⬇⬇✅ 5 chars');
+    assert.equal(shareText('2026-11-03', 12, ['✅'], null), 'Halt? #2026-11-03 L12 ✅');
   });
 });
 

@@ -56,8 +56,8 @@ export interface Intro {
 export const HOOK: Text = { ko: '이 반복문, 끝나긴 할까?', en: 'Will this loop ever end?' };
 
 export const PURPOSE: Text = {
-  ko: "프로그램이 맞다는 증명은 두 조각입니다. '끝나면 결과가 맞다'(부분 정확성, 루프 불변식)와 '반드시 끝난다'(종료). It Ends는 뒤 조각을 연습하는 게임입니다. 반복문 18개가 끝나는지 하나씩 판정하고, 끝난다면 남은 계단 수(반복이 앞으로 몇 번 남았는지 세는 식)로, 안 끝난다면 영원히 도는 시작값으로 증명합니다. 증명은 Z3가 검사합니다. 끝나는지 아무도 모르는 반복문도 하나 있습니다.",
-  en: "A proof that a program is correct has two pieces: 'if it ends, the result is right' (partial correctness, loop invariants) and 'it does end' (termination). It Ends is a game for practising the second piece. Judge 18 loops one by one: does it end? If it does, prove it by writing the steps left (an expression that counts how many more times the loop will run); if it does not, prove it with a start that runs forever. Z3 checks every proof. And one loop is in here that nobody knows the answer to.",
+  ko: "프로그램이 맞다는 증명은 두 조각입니다. '끝나면 결과가 맞다'(부분 정확성, 루프 불변식)와 '반드시 끝난다'(종료). Halt?는 뒤 조각을 연습하는 게임입니다. 반복문 18개가 끝나는지 하나씩 판정하고, 끝난다면 남은 계단 수(반복이 앞으로 몇 번 남았는지 세는 식)로, 안 끝난다면 영원히 도는 시작값으로 증명합니다. 증명은 Z3가 검사합니다. 끝나는지 아무도 모르는 반복문도 하나 있습니다.",
+  en: "A proof that a program is correct has two pieces: 'if it ends, the result is right' (partial correctness, loop invariants) and 'it does end' (termination). Halt? is a game for practising the second piece. Judge 18 loops one by one: does it end? If it does, prove it by writing the steps left (an expression that counts how many more times the loop will run); if it does not, prove it with a start that runs forever. Z3 checks every proof. And one loop is in here that nobody knows the answer to.",
 };
 
 const C: TutorialKey = 'countdown';
@@ -66,8 +66,8 @@ const C: TutorialKey = 'countdown';
 export const TUTORIAL: TutPage[] = [
   {
     text: {
-      ko: '**It Ends에 오신 여러분, 환영합니다!** 이 게임은 프로그램의 반복문(while)이 언젠가 끝나는지 알아맞히고, 왜 그런지 보여 주는 퍼즐이에요. 목표는 반복문 18개를 하나씩 판정하고 증명하는 거예요.',
-      en: "**Welcome to It Ends!** This is a puzzle game about telling whether a program's loop (while) eventually ends, and showing why. Your goal is to judge and prove 18 loops, one by one.",
+      ko: '**Halt?에 오신 여러분, 환영합니다!** 이 게임은 프로그램의 반복문(while)이 언젠가 끝나는지 알아맞히고, 왜 그런지 보여 주는 퍼즐이에요. 목표는 반복문 18개를 하나씩 판정하고 증명하는 거예요.',
+      en: "**Welcome to Halt?!** This is a puzzle game about telling whether a program's loop (while) eventually ends, and showing why. Your goal is to judge and prove 18 loops, one by one.",
     },
     shots: [{ scene: { k: 'run', prog: C, start: { n: 5 } } }],
     wide: true,

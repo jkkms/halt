@@ -1,12 +1,12 @@
-// A plain static server that imitates GitHub Pages: serves dist/ under /it-ends/ and sends no
+// A plain static server that imitates GitHub Pages: serves dist/ under /halt/ and sends no
 // COOP/COEP headers, so cross-origin isolation has to come from coi-serviceworker.
-//   node scripts/serve-pages.mjs [port]   ->  http://localhost:4174/it-ends/
+//   node scripts/serve-pages.mjs [port]   ->  http://localhost:4174/halt/
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 
 const root = join(import.meta.dirname, '..', 'dist');
-const base = '/it-ends/';
+const base = '/halt/';
 const port = Number(process.argv[2] ?? 4174);
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -23,7 +23,7 @@ const types = {
 
 createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
-  if (url.pathname === '/' || url.pathname === '/it-ends') {
+  if (url.pathname === '/' || url.pathname === '/halt') {
     res.writeHead(302, { location: base });
     return res.end();
   }

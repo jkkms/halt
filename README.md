@@ -1,10 +1,10 @@
-# It Ends
+# Halt?
 
 반복문이 끝나는지 증명하는 브라우저 퍼즐 게임 · A browser puzzle game about proving that loops end
 
-플레이 / Play: <https://jkkms.github.io/it-ends/>
+플레이 / Play: <https://jkkms.github.io/halt/>
 
-![It Ends title screen: a sandstone building at dusk, a walker with a lantern going down the stairs](docs/screenshot-title.png)
+![Halt? title screen: a sandstone building at dusk, a walker with a lantern going down the stairs](docs/screenshot-title.png)
 
 [한국어](#한국어) · [English](#english)
 
@@ -15,11 +15,11 @@
 ### 무엇인가요
 
 프로그램이 맞다는 증명은 두 조각입니다. '끝나면 결과가 맞다'(부분 정확성, 루프 불변식)와 '반드시 끝난다'(종료).
-It Ends는 뒤 조각을 연습하는 게임입니다. 반복문 18개가 끝나는지 하나씩 판정하고, 끝난다면 남은 계단 수(반복이 앞으로 몇 번
+Halt?는 뒤 조각을 연습하는 게임입니다. 반복문 18개가 끝나는지 하나씩 판정하고, 끝난다면 남은 계단 수(반복이 앞으로 몇 번
 남았는지 세는 식)로, 안 끝난다면 영원히 도는 시작값으로 증명합니다. 증명은 Z3가 검사합니다. 끝나는지 아무도 모르는 반복문도 하나 있습니다.
 
 KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나온 학생 게임 Invariant Frog와 Art of Artillery: Danger Close는
-루프 불변식으로 *부분 정확성*을 증명하고, 두 게임 모두 **종료**와 변수 3개 이상은 다루지 못한다고 밝힙니다. It Ends는 그 두 가지를 다룹니다.
+루프 불변식으로 *부분 정확성*을 증명하고, 두 게임 모두 **종료**와 변수 3개 이상은 다루지 못한다고 밝힙니다. Halt?는 그 두 가지를 다룹니다.
 판정은 브라우저 안에서 돌아가는 SMT 풀이기 **Z3**가 합니다.
 
 ### 하는 법
@@ -64,7 +64,7 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 - 별: ★ 해결 · ★★ 3번 안에 · ★★★ 거기에 답 길이 ≤ 기준(끝나는 레벨, 난간 포함, 빈칸 제외) 또는 첫 시도(안 끝나는 레벨과 마지막 레벨).
   식 오류, 허용되지 않는 시작값, 판정기 시간 초과(5초)는 시도로 세지 않습니다.
 - 오늘의 문제: UTC 날짜로 하루 한 레벨. 풀고 나면 답은 빼고 시도 기록만 담긴 한 줄을 복사할 수 있습니다
-  (예: `It Ends #2026-11-03 L10 ⬇⬇✅ 5 chars`; ⬇ 땅 밑으로 떨어짐, ➡ 평평한 걸음, ⬆ 올라간 걸음, ❌ 그 밖의 실패).
+  (예: `Halt? #2026-11-03 L10 ⬇⬇✅ 5 chars`; ⬇ 땅 밑으로 떨어짐, ➡ 평평한 걸음, ⬆ 올라간 걸음, ❌ 그 밖의 실패).
 - 한국어/영어 전환(처음에는 브라우저 언어를 따름), 소리 켜기/끄기(기억함), 휴대폰 화면, Enter로 제출.
 
 | 레벨 1: 남은 계단 수 0의 반례 | 레벨 10: 튜플 (x, y) |
@@ -109,7 +109,7 @@ npm i
 npm run dev          # http://localhost:5173 (개발 서버가 COOP/COEP 헤더를 보냄)
 npm test             # node --test: 파서, 18개 레벨 전부, 튜토리얼 전용 예제 전부(Z3), / % 의미 비교, 무대·튜토리얼 데이터 (Node 24 권장)
 npm run build        # dist/ (base './', 하위 경로에서도 동작)
-npm run serve:pages  # dist/를 http://localhost:4174/it-ends/ 에서 특별한 헤더 없이 제공 (GitHub Pages 흉내)
+npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤더 없이 제공 (GitHub Pages 흉내)
 ```
 
 주소 끝에 `?mute`를 붙이면 소리가 나지 않고, `?flat`을 붙이면 3D 대신 평면 그림으로 봅니다(WebGL이 없을 때 자동으로 쓰는 그림).
@@ -157,13 +157,13 @@ MIT. [LICENSE](LICENSE)를 보세요.
 ### What it is
 
 A proof that a program is correct has two pieces: 'if it ends, the result is right' (partial correctness, loop invariants)
-and 'it does end' (termination). It Ends is a game for practising the second piece. Judge 18 loops one by one: does it end?
+and 'it does end' (termination). Halt? is a game for practising the second piece. Judge 18 loops one by one: does it end?
 If it does, prove it by writing the steps left (an expression that counts how many more times the loop will run); if it does
 not, prove it with a start that runs forever. Z3 checks every proof. And one loop is in here that nobody knows the answer to.
 
 It is made for students of KAIST CS424 (Program Reasoning). The earlier student games Invariant Frog and Art of Artillery:
 Danger Close prove *partial correctness* with loop invariants, and both say they cannot handle **termination** or more than two
-or three variables. It Ends handles both. The judge is the **Z3** SMT solver, running in your browser.
+or three variables. Halt? handles both. The judge is the **Z3** SMT solver, running in your browser.
 
 ### How to play
 
@@ -213,7 +213,7 @@ Your goal is to **judge** and **prove** 18 loops, one by one. Every level has tw
 - Stars: ★ solved · ★★ within 3 attempts · ★★★ also answer length ≤ par (ends-levels; railing counts, spaces don't) or first attempt (never-levels and the last level).
   Parse errors, disallowed starts and judge timeouts (5 s) cost no attempt.
 - Daily puzzle: one level per UTC date. After solving it, copy a line with your attempts but not your answer
-  (e.g. `It Ends #2026-11-03 L10 ⬇⬇✅ 5 chars`; ⬇ fell below ground, ➡ flat step, ⬆ step up, ❌ other failure).
+  (e.g. `Halt? #2026-11-03 L10 ⬇⬇✅ 5 chars`; ⬇ fell below ground, ➡ flat step, ⬆ step up, ❌ other failure).
 - Korean/English toggle (default from the browser language), sound on/off (remembered), phone layout, Enter submits.
 
 | Level 1: the counterexample to steps left 0 | Level 10: the tuple (x, y) |
@@ -258,7 +258,7 @@ npm i
 npm run dev          # http://localhost:5173 (the dev server sends COOP/COEP headers)
 npm test             # node --test: parser, all 18 levels, every tutorial-only example (Z3), / and % against Z3, stage and tutorial data (Node 24 recommended)
 npm run build        # dist/ (base './', works from a sub-path)
-npm run serve:pages  # serves dist/ at http://localhost:4174/it-ends/ with no special headers, like GitHub Pages
+npm run serve:pages  # serves dist/ at http://localhost:4174/halt/ with no special headers, like GitHub Pages
 ```
 
 Add `?mute` to the address for silence, or `?flat` for the flat drawing instead of 3-D (used automatically without WebGL).

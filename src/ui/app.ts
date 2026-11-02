@@ -142,7 +142,7 @@ export class App {
     // Screens with a stage mount it again in shown(); the others leave it paused.
     this.stage.setActive(false);
     this.root.replaceChildren(next.el);
-    document.title = next instanceof LevelScreen ? `It Ends · ${t('levelN', { n: next.levelId })}` : 'It Ends';
+    document.title = next instanceof LevelScreen ? `Halt? · ${t('levelN', { n: next.levelId })}` : 'Halt?';
     window.scrollTo(0, 0);
     next.shown?.();
   }
@@ -186,7 +186,7 @@ export class App {
         'div',
         { class: 'bar-left' },
         o.back ? h('a', { class: 'back', href: o.back.href }, h('span', { 'aria-hidden': 'true' }, '←'), h('span', { class: 'back-label' }, o.back.label)) : null,
-        h('a', { class: 'mini-brand', href: '#/', 'aria-label': 'It Ends' }, logoMark(), h('span', {}, 'It Ends')),
+        h('a', { class: 'mini-brand', href: '#/', 'aria-label': 'Halt?' }, logoMark(), h('span', {}, 'Halt?')),
         o.title ? h('div', { class: 'bar-title' }, o.title) : null,
       ),
       h('div', { class: 'bar-right' }, ...(o.extra ?? []), sound, langBtn),

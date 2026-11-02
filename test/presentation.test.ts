@@ -317,7 +317,7 @@ describe('tutorial (v0.3: 8 pages, one flow)', () => {
   });
 
   it('keeps the spec’s words (spot checks; the full texts were compared with SPEC_v0.3)', () => {
-    assert.ok(TUTORIAL[0]!.text.ko.startsWith('**It Ends에 오신 여러분, 환영합니다!**'));
+    assert.ok(TUTORIAL[0]!.text.ko.startsWith('**Halt?에 오신 여러분, 환영합니다!**'));
     assert.ok(TUTORIAL[0]!.text.en.endsWith('Your goal is to judge and prove 18 loops, one by one.'));
     assert.ok(TUTORIAL[2]!.text.ko.startsWith('**1단계 · 판정.**'));
     assert.ok(TUTORIAL[3]!.text.ko.startsWith('**2단계 · 증명(끝난다).**'));
