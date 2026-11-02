@@ -29,9 +29,11 @@ jobs:
         timeout-minutes: 5
       - run: npm run build
       - uses: actions/configure-pages@v5
+      # The game is served by Vercel (it can send the COOP/COEP headers Safari needs);
+      # GitHub Pages only redirects the old address there.
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: pages-redirect
 
   deploy:
     needs: build

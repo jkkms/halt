@@ -2,7 +2,7 @@
 
 반복문이 끝나는지 증명하는 브라우저 퍼즐 게임 · A browser puzzle game about proving that loops end
 
-플레이 / Play: <https://jkkms.github.io/halt/>
+플레이 / Play: <https://halt-seven-delta.vercel.app/>
 
 ![Halt? title screen: a sandstone building at dusk, a walker with a lantern going down the stairs](docs/screenshot-title.png)
 
@@ -114,7 +114,7 @@ npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤
 
 주소 끝에 `?mute`를 붙이면 소리가 나지 않고, `?flat`을 붙이면 3D 대신 평면 그림으로 봅니다(WebGL이 없을 때 자동으로 쓰는 그림).
 
-`main`에 푸시하면 `.github/workflows/pages.yml`이 테스트, 빌드 후 `dist/`를 GitHub Pages에 배포합니다.
+게임은 [Vercel](https://vercel.com)에서 서비스합니다. `main`에 푸시하면 Vercel이 빌드·배포하고, `vercel.json`이 교차 출처 격리 헤더(COOP `same-origin`, COEP `require-corp`)를 붙입니다. `.github/workflows/pages.yml`은 테스트·빌드를 돌린 뒤, 옛 주소 `jkkms.github.io/halt/`에는 새 주소로 넘기는 페이지만 올립니다.
 
 ### 기술 메모
 
@@ -126,10 +126,9 @@ npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤
   [licenses/Pretendard-OFL-1.1.txt](licenses/Pretendard-OFL-1.1.txt)와 배포본의 `fonts/LICENSE.txt`에 있습니다.
 - 소리는 파일 없이 WebAudio로 만듭니다(걸음, 착지, 실패, 해결). `prefers-reduced-motion`이면 애니메이션이 짧아집니다.
 - Z3는 SharedArrayBuffer가 필요해서 교차 출처 격리(cross-origin isolation)가 필요합니다. 개발 서버는 헤더를 직접 보내고,
-  GitHub Pages에서는 `coi-serviceworker`가 붙여 줍니다(처음 방문할 때 한 번 새로고침됨). 이 스크립트는 크롬·파이어폭스가 아닌
-  브라우저에서 COEP `credentialless`를 쓰는데 사파리는 이를 지원하지 않아 판정기가 시작되지 않았습니다. 그래서 `index.html`에서
-  `window.coi = { coepCredentialless: () => false }`로 모든 브라우저에 `require-corp`를 씁니다(모든 파일이 같은 출처라 문제없음).
-  크롬과 Playwright WebKit(사파리 엔진)에서 판정기 준비와 레벨 풀이를 확인했습니다.
+  Vercel에서는 `vercel.json`이 실제 응답 헤더로 보냅니다. 처음에는 GitHub Pages에서 `coi-serviceworker`(서비스 워커가 헤더를
+  흉내 냄)로 했는데, 실제 사파리 앱은 이렇게 흉내 낸 헤더로는 격리를 켜지 않아 판정기가 시작되지 않았습니다. 그래서 헤더를 직접
+  보낼 수 있는 Vercel로 옮겼습니다. `coi-serviceworker`는 헤더가 없는 곳(예: 로컬 `serve:pages`)을 위한 예비로 남겨 두었습니다.
 - Z3의 Emscripten 로더와 wasm, 글꼴은 번들하지 않고 `scripts/copy-assets.mjs`가 `public/`에 복사합니다.
   wasm(35 MB)은 gzip(약 8 MB)으로 받아 브라우저에서 풉니다. 불러오는 동안에도 화면은 그대로 쓸 수 있습니다.
 - 진행 상황(최고 별, 튜토리얼을 마쳤는지, 이미 보여 준 소개, 오늘의 문제, 소리 설정)은 `localStorage`에 저장하며, 저장소를 쓸 수 없어도 게임은 돌아갑니다.
@@ -263,7 +262,7 @@ npm run serve:pages  # serves dist/ at http://localhost:4174/halt/ with no speci
 
 Add `?mute` to the address for silence, or `?flat` for the flat drawing instead of 3-D (used automatically without WebGL).
 
-Pushing to `main` runs `.github/workflows/pages.yml`: test, build, deploy `dist/` to GitHub Pages.
+The game is served by [Vercel](https://vercel.com): a push to `main` builds and deploys it, and `vercel.json` sends the cross-origin isolation headers (COOP `same-origin`, COEP `require-corp`). `.github/workflows/pages.yml` runs the tests and the build, then publishes only a redirect page at the old address `jkkms.github.io/halt/`.
 
 ### Tech notes
 
@@ -275,10 +274,9 @@ Pushing to `main` runs `.github/workflows/pages.yml`: test, build, deploy `dist/
   License: [licenses/Pretendard-OFL-1.1.txt](licenses/Pretendard-OFL-1.1.txt) and `fonts/LICENSE.txt` in the build.
 - Sounds are generated with WebAudio (step, landing, failure, solved); no sound files. `prefers-reduced-motion` shortens the animations.
 - Z3 needs SharedArrayBuffer, hence a cross-origin isolated page. The dev server sends the headers; on GitHub Pages
-  `coi-serviceworker` adds them (the first visit reloads once). That script uses COEP `credentialless` in browsers other than
-  Chrome and Firefox, which Safari does not support, so the judge never started there. `index.html` therefore sets
-  `window.coi = { coepCredentialless: () => false }`: plain `require-corp` everywhere (every file is same-origin). Checked in
-  Chrome and in Playwright's WebKit (Safari's engine): the judge gets ready and the levels can be solved.
+  On Vercel, `vercel.json` sends them as real response headers. The game first ran on GitHub Pages with `coi-serviceworker`
+  (a service worker that imitates the headers), but the Safari app does not turn on isolation for imitated headers, so the judge
+  never started there; hence the move to Vercel. `coi-serviceworker` stays as a fallback where no headers are sent (e.g. `serve:pages`).
 - Z3's Emscripten loader and wasm and the font files are not bundled: `scripts/copy-assets.mjs` copies them to `public/`.
   The 35 MB wasm is fetched gzipped (about 8 MB) and unpacked in the browser. The page stays usable while it loads.
 - Progress (best stars, whether the tutorial was finished, intros already shown, daily puzzle, sound setting) lives in
