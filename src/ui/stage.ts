@@ -8,6 +8,7 @@ import { sfx } from './audio.ts';
 import { clear, h } from './dom.ts';
 import { rank, stateShort } from './format.ts';
 import { t } from './i18n.ts';
+import type { SoftKind, WalkerSpot } from './bubble.ts';
 import { Scene as FlatScene, type SceneModel } from './scene.ts';
 import type { PlayInfo, ShowOptions, StageRenderer, StageText } from './stageTypes.ts';
 
@@ -127,6 +128,39 @@ export class StageHost {
   replay(): void {
     if (this.renderer) this.renderer.replay();
     else this.flat?.replay();
+  }
+
+  /** The walker's head and feet in pixels of the stage box; null when unknown (loading, flat drawing, off screen). */
+  walkerSpot(): WalkerSpot | null {
+    return this.renderer?.walkerSpot() ?? null;
+  }
+
+  /**
+   * The stage's own boxes over the drawing, for things floating over it (the tutorial's speech bubble): its words
+   * (the callouts, the exit sign, the caption, the railing and zone signs), its numbers (the step badges, the ruler)
+   * and its buttons (the step counter, the shot buttons). The loop-check bubble is left out: it comes and goes, and
+   * the speech bubble keeps clear of where it will be anyway.
+   */
+  overlays(): { rect: DOMRect; kind: SoftKind }[] {
+    const out: { rect: DOMRect; kind: SoftKind }[] = [];
+    const add = (el: HTMLElement, kind: SoftKind) => {
+      if (el.hidden || !el.childNodes.length || el.style.display === 'none') return;
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height) out.push({ rect: r, kind });
+    };
+    add(this.hud, 'ui');
+    add(this.controlsEl, 'ui');
+    add(this.captionEl, 'text');
+    for (const el of this.layer.querySelectorAll<HTMLElement>('.l3:not(.l3-check)')) add(el, el.matches('.l3-v, .l3-tick, .l3-inf, .l3-more') ? 'number' : 'text');
+    return out;
+  }
+
+  /** The size of the loop-check bubble over the walker's head while it is shown; null otherwise. */
+  checkSize(): { w: number; h: number } | null {
+    const el = this.layer.querySelector<HTMLElement>('.l3-check');
+    if (!el || el.style.display === 'none') return null;
+    const r = el.getBoundingClientRect();
+    return r.width && r.height ? { w: r.width, h: r.height } : null;
   }
 
   relang(): void {

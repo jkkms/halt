@@ -171,6 +171,11 @@ export class Figure {
     this.lantern.add(this.light);
   }
 
+  /** The centre of the skull in world space, as of the last render (the tutorial's speech bubble points at it). */
+  headWorld(out: Vector3): Vector3 {
+    return this.head.localToWorld(out.set(-0.006, 0.05, 0));
+  }
+
   /** Skull, face, ears, hair; eyes and brows only (a calm, simple face). */
   private buildHead(M: Record<'skin' | 'hair' | 'eye', Material>): void {
     const h = this.head;

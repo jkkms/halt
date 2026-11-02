@@ -356,6 +356,7 @@ var {
 }
 
 /* ---------------------------------------------------------------- title */
+/* One centred composition (v0.5): the words at the top, the building in the middle, the menu at the bottom. */
 
 .title-screen {
   position: relative;
@@ -368,39 +369,50 @@ var {
   inset: 0;
 }
 
+/* Shades at the top and the bottom keep the text readable; the middle band stays clear for the walker. */
 .title-shade {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(10, 14, 36, 0.92) 0%, rgba(10, 14, 36, 0.78) 34%, rgba(10, 14, 36, 0.1) 62%, rgba(10, 14, 36, 0) 75%);
+  background: linear-gradient(
+    180deg,
+    rgba(10, 14, 36, 0.92) 0%,
+    rgba(10, 14, 36, 0.7) 20%,
+    rgba(10, 14, 36, 0) 40%,
+    rgba(10, 14, 36, 0) 66%,
+    rgba(10, 14, 36, 0.78) 84%,
+    rgba(10, 14, 36, 0.95) 100%
+  );
   z-index: 1;
-}
-
-@media (max-width: 1240px) {
-  /* Mid widths: the text column covers more of the stage, so the shade reaches further. */
-  .title-shade {
-    background: linear-gradient(90deg, rgba(10, 14, 36, 0.94) 0%, rgba(10, 14, 36, 0.88) 50%, rgba(10, 14, 36, 0.35) 72%, rgba(10, 14, 36, 0) 88%);
-  }
 }
 
 .title-content {
   position: relative;
   z-index: 2;
-  max-width: 600px;
   min-height: 100dvh;
-  padding: 72px 48px 32px;
+  padding: 50px 24px 20px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  text-align: center;
+}
+
+.title-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .wordmark {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: clamp(52px, 7.2vw, 92px);
+  justify-content: center;
+  gap: 0.2em;
+  font-size: clamp(46px, 5.4vw, 76px);
   line-height: 1;
   font-weight: 860;
   letter-spacing: -0.035em;
@@ -412,37 +424,60 @@ var {
   flex: 0 0 auto;
 }
 
+/* the question is the hero line, second only to the wordmark */
 .hook {
-  margin: 0;
-  font-size: clamp(19px, 2.2vw, 24px);
-  font-weight: 650;
+  margin: 10px 0 0;
+  font-size: clamp(28px, 3.7vw, 52px);
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   color: var(--amber-2);
-}
-
-.purpose {
-  margin: 0;
-  max-width: 56ch;
-  font-size: 15.5px;
-  line-height: 1.75;
-  color: var(--on-night-2);
+  text-shadow: 0 2px 22px rgba(10, 14, 36, 0.8);
   word-break: keep-all;
 }
 
+.title-line {
+  margin: 0;
+  max-width: 34em;
+  font-size: clamp(15px, 1.3vw, 18px);
+  font-weight: 550;
+  color: var(--on-night);
+  opacity: 0.86;
+  text-shadow: 0 1px 12px rgba(10, 14, 36, 0.9);
+  word-break: keep-all;
+}
+
+.title-bottom {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
 .menu {
-  display: grid;
-  gap: 10px;
-  max-width: 400px;
-  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 880px;
 }
 
 .menu-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 290px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
   padding: 13px 18px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 27, 64, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   text-decoration: none;
   transition:
     transform 0.12s ease,
@@ -450,8 +485,8 @@ var {
 }
 
 .menu-btn:hover {
-  transform: translateX(3px);
-  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  background: rgba(32, 40, 88, 0.86);
 }
 
 .menu-btn.primary {
@@ -459,6 +494,10 @@ var {
   border-color: var(--amber);
   color: var(--amber-ink);
   box-shadow: 0 4px 0 #b7701c;
+}
+
+.menu-btn.primary:hover {
+  background: #f6b259;
 }
 
 .menu-label {
@@ -469,11 +508,13 @@ var {
 .menu-sub {
   font-size: 13px;
   opacity: 0.82;
+  word-break: keep-all;
 }
 
 .title-foot {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 6px 16px;
   font-size: 12.5px;
   color: var(--on-night-2);
@@ -955,15 +996,6 @@ var {
   font-size: 13px;
 }
 
-.tut-stage .stage-controls {
-  top: auto;
-  bottom: 62px;
-  left: 12px;
-  right: auto;
-  max-width: calc(100% - 24px);
-  justify-content: flex-start;
-}
-
 .pill:hover {
   background: rgba(12, 16, 40, 0.9);
 }
@@ -1054,8 +1086,12 @@ var {
 }
 
 /* ---------------------------------------------------------------- tutorial */
+/* v0.5: the stage fills the screen and the walker speaks in a bubble; the controls stay still in a pill at the
+   bottom, and a page's interactive piece floats in a card just above them (under the stage on phones). */
 
 .tut-screen {
+  --pill-b: 16px;
+  --pill-h: 54px;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -1071,6 +1107,15 @@ var {
 .tut-stage {
   position: absolute;
   inset: 0;
+}
+
+/* The stage fills its box by position, not by `height: 100%`: on phones the box's height comes from flex-grow and
+   min-height, which a percentage cannot resolve against (the stage would be 0 px tall and draw nothing). */
+.tut-stage > .stage {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
 }
 
 .tut-code {
@@ -1103,35 +1148,187 @@ var {
   color: var(--ink-2);
 }
 
-.narration {
-  flex: 0 0 auto;
-  max-height: 50dvh;
-  overflow-y: auto;
-  background: var(--paper);
-  color: var(--ink);
-  border-top: 4px solid var(--amber);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.narr-inner {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 14px 22px 16px;
-}
-
-.narr-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12.5px;
+.tut-code-facts code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--sand);
+  font-size: 0.92em;
   font-weight: 700;
-  color: var(--ink-2);
 }
 
-.narr-right {
+/* the speech bubble: placed every frame by tutorialView.ts (translate), its outline drawn as one SVG path */
+.tut-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: min(380px, calc(100% - 20px));
+  pointer-events: none;
+  visibility: hidden;
+  will-change: transform;
+}
+
+.tut-bubble.placed {
+  visibility: visible;
+}
+
+.tut-bubble-body {
+  position: relative;
+}
+
+.tut-bubble-body.pop {
+  animation: bubble-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes bubble-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+}
+
+.tut-bubble-shape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  filter: drop-shadow(0 8px 16px rgba(6, 8, 24, 0.4));
+}
+
+.tut-bubble-line {
+  fill: #fff5e1;
+  stroke: var(--amber);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.tut-bubble-text {
+  position: relative;
+  margin: 0;
+  padding: 13px 17px 14px;
+  color: var(--ink);
+  font-size: 15.5px;
+  line-height: 1.62;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.tut-bubble-text strong {
+  font-weight: 820;
+  color: var(--ember);
+}
+
+.tut-bubble-text code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--sand-2);
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+/* the controls: still, compact, bottom centre of the stage */
+.tut-controls {
+  position: absolute;
+  left: 50%;
+  bottom: var(--pill-b);
+  z-index: 6;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
+  height: var(--pill-h);
+  max-width: calc(100% - 16px);
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(12, 19, 48, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.tc-prev {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--on-night);
+  font: 700 14.5px var(--sans);
+  cursor: pointer;
+}
+
+.tc-prev:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tc-prev:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tc-count {
+  min-width: 3.6em;
+  text-align: center;
+  font: 700 13.5px var(--mono);
+  color: var(--on-night-2);
+}
+
+.tut-controls .tc-next {
+  min-height: 40px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.tut-controls .skip {
+  margin: 0 8px 0 6px;
+  color: var(--on-night-2);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.tut-controls .skip:hover {
+  color: var(--on-night);
+}
+
+/* the interactive piece of a page, just above the controls */
+.tut-extra {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--pill-b) + var(--pill-h) + 10px);
+  z-index: 6;
+  transform: translateX(-50%);
+  width: min(500px, calc(100% - 24px));
+  max-height: calc(100% - var(--pill-b) - var(--pill-h) - 140px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.tut-extra > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.tut-stage .stage-caption {
+  right: auto;
+  bottom: var(--pill-b);
+  max-width: min(400px, calc(50% - 215px));
+}
+
+.tut-stage .stage-controls {
+  top: auto;
+  bottom: calc(var(--pill-b) + 52px);
+  left: 12px;
+  right: auto;
+  max-width: calc(50% - 230px);
+  justify-content: flex-start;
 }
 
 .skip {
@@ -1149,29 +1346,8 @@ var {
   color: var(--ink);
 }
 
-.narr-text {
-  margin: 8px 0 4px;
-  font-size: 17px;
-  line-height: 1.7;
-  word-break: keep-all;
-}
-
-.narr-text strong {
-  font-weight: 820;
-  color: var(--ember);
-}
-
-.narr-text code,
-.tut-code-facts code {
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--sand);
-  font-size: 0.92em;
-  font-weight: 700;
-}
-
 .verdict-card-demo {
-  margin: 10px 0 2px;
+  margin: 0;
   padding: 12px 14px;
   border: 1px solid var(--sand-3);
   border-radius: var(--radius);
@@ -1229,61 +1405,19 @@ var {
 }
 
 .tut-level-card {
-  max-width: 320px;
-  margin: 12px 0 2px;
+  margin: 0;
   border-color: var(--amber);
   background: #fffaf1;
 }
 
-.narr-note {
-  margin: 6px 0;
-  color: var(--ink-2);
-}
-
-.narr-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.narr-nav .btn.ghost {
-  color: var(--ink);
-}
-
-.dots {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-
-.pdot {
-  width: 9px;
-  height: 9px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--sand-3);
-  cursor: pointer;
-  transition: width 0.15s ease;
-}
-
-.pdot.seen {
-  background: #d59a4a;
-}
-
-.pdot.on {
-  width: 24px;
-  background: var(--amber);
-}
-
 .try {
-  margin: 10px 0 2px;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--sand);
+  margin: 0;
+}
+
+.tut-note {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
 }
 
 .try-field {
@@ -2139,37 +2273,30 @@ var {
     padding: 0 7px;
   }
 
-  .title-stage {
-    position: relative;
-    height: 44dvh;
-    min-height: 280px;
-  }
-
-  .title-shade {
-    inset: auto 0 auto 0;
-    top: 0;
-    height: 44dvh;
-    min-height: 280px;
-    background: linear-gradient(180deg, rgba(10, 14, 36, 0.35) 0%, rgba(10, 14, 36, 0) 40%, rgba(12, 19, 48, 0.85) 92%, var(--night) 100%);
-  }
-
   .title-content {
-    min-height: 0;
-    margin-top: -64px;
-    padding: 0 16px 28px;
-    gap: 14px;
+    padding: 54px 16px 16px;
+    gap: 16px;
   }
 
-  .wordmark {
-    font-size: 52px;
+  .hook {
+    margin-top: 6px;
   }
 
-  .purpose {
-    font-size: 14.5px;
-  }
-
+  /* phones: the menu stacked, full width */
   .menu {
+    flex-direction: column;
+    gap: 8px;
     max-width: none;
+  }
+
+  .menu-btn {
+    flex: 0 0 auto;
+    max-width: none;
+    padding: 11px 16px;
+  }
+
+  .menu-label {
+    font-size: 17px;
   }
 
   .page {
@@ -2185,40 +2312,78 @@ var {
     gap: 10px;
   }
 
-  .tut-main {
-    min-height: 0;
-    flex: 0 0 auto;
-  }
-
+  /* phones: the bubble over the stage, the controls at its bottom, the code and the interactive card below */
   .tut-screen {
+    --pill-b: 10px;
+    --pill-h: 50px;
     height: auto;
     min-height: 100dvh;
-  }
-
-  .narration {
-    max-height: none;
-    flex: 1 0 auto;
-  }
-
-  .narr-inner {
-    padding: 12px 16px 18px;
-  }
-
-  .narr-text {
-    font-size: 16px;
   }
 
   .tut-main {
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    flex: 1 0 auto;
   }
 
+  /* at least 70% of the screen; all of what is left when nothing comes below it */
   .tut-stage {
     position: relative;
     inset: auto;
-    flex: 0 0 auto;
-    height: 42dvh;
-    min-height: 260px;
+    flex: 1 0 auto;
+    min-height: max(400px, min(70dvh, 620px));
+  }
+
+  .tut-bubble {
+    max-width: min(300px, calc(100% - 20px));
+  }
+
+  .tut-bubble-text {
+    padding: 11px 14px 12px;
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+
+  .tut-extra {
+    position: static;
+    transform: none;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 12px 16px 18px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .tc-prev {
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .tut-controls .tc-next {
+    padding: 6px 14px;
+    font-size: 14.5px;
+  }
+
+  /* the step counter top left, the shot buttons top right, the caption just above the controls */
+  .tut-stage .stage-hud {
+    max-width: 58%;
+  }
+
+  .tut-stage .stage-controls {
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    max-width: 40%;
+    justify-content: flex-end;
+  }
+
+  .tut-stage .stage-caption {
+    bottom: calc(var(--pill-b) + var(--pill-h) + 8px);
+    right: 8px;
+    max-width: none;
   }
 
   .tut-code {
@@ -2286,14 +2451,6 @@ var {
     font-size: 14px;
   }
 
-  .narr-nav {
-    flex-wrap: wrap;
-  }
-
-  .dots {
-    order: -1;
-    flex-basis: 100%;
-  }
 }
 
 @media (max-width: 520px) {

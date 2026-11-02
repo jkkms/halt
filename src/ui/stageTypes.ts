@@ -2,6 +2,7 @@
 import type { Bad, StageScene } from '../core/stage.ts';
 import type { State } from '../core/sim.ts';
 import type { Callout } from '../core/tutorial.ts';
+import type { WalkerSpot } from './bubble.ts';
 
 export interface StageText {
   ground: string;
@@ -52,8 +53,8 @@ export interface ShowOptions {
   onBeat?: (b: PlayInfo) => void;
   /** Camera distance multiplier (title: further away). */
   zoom?: number;
-  /** Move the subject right by this fraction of the width (title: room for the text on the left). */
-  shift?: number;
+  /** Move the subject down by this fraction of the stage's height (negative: up). */
+  drop?: number;
 }
 
 export interface StageRenderer {
@@ -63,6 +64,8 @@ export interface StageRenderer {
   setActive(on: boolean): void;
   resize(): void;
   dispose(): void;
+  /** The walker's head and feet in pixels of the stage box, as of the last frame; null when hidden or off screen. */
+  walkerSpot(): WalkerSpot | null;
 }
 
 export interface RendererHooks {

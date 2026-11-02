@@ -34,6 +34,7 @@ import { beats, type Bad, type StageScene } from '../core/stage.ts';
 import type { State } from '../core/sim.ts';
 import type { Callout } from '../core/tutorial.ts';
 import type { PlayInfo, RendererHooks, ShowOptions, StageRenderer, StageText } from './stageTypes.ts';
+import type { WalkerSpot } from './bubble.ts';
 import { Figure } from './figure3d.ts';
 import { climb, exit, fall, fallIn, guard, sstep, stand, stepMs, stumble, walk, type Placed, type Side } from './gait.ts';
 
@@ -150,6 +151,10 @@ class Stage3D implements StageRenderer {
   private hooks: RendererHooks;
   /** The bubble over the walker while it checks the loop condition. */
   private bubble: HTMLElement | null = null;
+  /** Where the walker is on screen after the last frame (for the tutorial's speech bubble). */
+  private spot: WalkerSpot | null = null;
+  private headAt = new Vector3();
+  private feetAt = new Vector3();
 
   constructor(parent: HTMLElement, layer: HTMLElement, text: StageText, hooks: RendererHooks) {
     this.parent = parent;
@@ -242,22 +247,26 @@ class Stage3D implements StageRenderer {
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     this.camera.aspect = w / h;
-    this.applyShift();
+    this.applyDrop();
     this.snap = true;
   }
 
-  /** Off-centre projection: the subject sits to the right, leaving room for text on the left. */
-  private applyShift(): void {
+  /** Move the subject down or up (the tutorial: room for its speech bubble or its card). */
+  private applyDrop(): void {
     const w = this.parent.clientWidth || 1;
     const h = this.parent.clientHeight || 1;
-    const shift = w > 760 ? (this.opts.shift ?? 0) : 0;
-    if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
+    const drop = this.opts.drop ?? 0;
+    if (drop) this.camera.setViewOffset(w, h, 0, -drop * h, w, h);
     else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
   }
 
   replay(): void {
     this.restart(true);
+  }
+
+  walkerSpot(): WalkerSpot | null {
+    return this.spot;
   }
 
   dispose(): void {
@@ -290,7 +299,7 @@ class Stage3D implements StageRenderer {
         break;
     }
     for (const c of opts.callouts ?? []) this.callout(c);
-    this.applyShift();
+    this.applyDrop();
     this.snap = true;
     this.restart(true);
   }
@@ -987,6 +996,24 @@ class Stage3D implements StageRenderer {
     b.style.setProperty('--y', `${(((1 - p.y) / 2) * this.parent.clientHeight).toFixed(1)}px`);
   }
 
+  /** Project the walker's head and feet; null while it is hidden, inside the door or off screen. */
+  private updateSpot(): void {
+    const w = this.parent.clientWidth;
+    const h = this.parent.clientHeight;
+    if (!this.walker.visible || !this.nodes.length || this.walker.scale.x < 0.4 || !w || !h) {
+      this.spot = null;
+      return;
+    }
+    const head = this.figure.headWorld(this.headAt).project(this.camera);
+    const feet = this.feetAt.copy(this.walker.position).project(this.camera);
+    if (head.z > 1 || Math.abs(head.x) > 0.97 || Math.abs(head.y) > 0.97) {
+      this.spot = null;
+      return;
+    }
+    const px = (p: Vector3) => ({ x: ((p.x + 1) / 2) * w, y: ((1 - p.y) / 2) * h });
+    this.spot = { head: px(head), feet: px(feet) };
+  }
+
   private tick(now: number): void {
     const dt = this.last ? Math.min(60, now - this.last) : 16;
     this.last = now;
@@ -999,5 +1026,6 @@ class Stage3D implements StageRenderer {
     this.renderer.render(this.scene, this.camera);
     this.updateLabels();
     this.updateBubble();
+    this.updateSpot();
   }
 }

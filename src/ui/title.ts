@@ -1,10 +1,12 @@
-// The title screen: the building at dusk with the walker going down, the hook, and what the game is for.
+// The title screen, one centred composition (SPEC_v0.5 §A): the wordmark, the question and one line on what you
+// do at the top; the building at dusk with the walker going down behind them; the menu in a row at the bottom.
+// The long purpose paragraph lives in the README; tutorial page 1 gives the goal.
 import { dailyLevelId, utcDateKey } from '../core/game.ts';
 import { recommendedNext } from '../core/groups.ts';
 import { levelById, LEVELS } from '../core/levels.ts';
 import { initialState } from '../core/sim.ts';
 import { runScene } from '../core/stage.ts';
-import { HOOK, PURPOSE } from '../core/tutorial.ts';
+import { HOOK } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { logoMark } from './app.ts';
 import { h } from './dom.ts';
@@ -33,21 +35,29 @@ export class TitleScreen implements Screen {
     const content = h(
       'div',
       { class: 'title-content' },
-      h('h1', { class: 'wordmark' }, logoMark('logo big'), h('span', {}, 'Halt?')),
-      h('p', { class: 'hook' }, HOOK[L]),
-      h('p', { class: 'purpose' }, PURPOSE[L]),
       h(
-        'nav',
-        { class: 'menu', 'aria-label': 'menu' },
-        btn(t('menuTutorial'), '#/tutorial', newcomer ? 'primary' : '', newcomer ? t('startHere') : undefined),
-        btn(t('menuLevels'), '#/levels', newcomer ? '' : 'primary', next && !newcomer ? t('menuContinue', { n: next }) : undefined),
-        btn(t('menuDaily'), '#/daily', '', `${t('levelN', { n: today })} · ${levelById(today).title[L]}`),
+        'div',
+        { class: 'title-top' },
+        h('h1', { class: 'wordmark' }, logoMark('logo big'), h('span', {}, 'Halt?')),
+        h('p', { class: 'hook' }, HOOK[L]),
+        h('p', { class: 'title-line' }, t('titleLine')),
       ),
       h(
         'div',
-        { class: 'title-foot' },
-        h('a', { href: 'https://github.com/jkkms/halt', target: '_blank', rel: 'noopener' }, t('github')),
-        h('span', {}, t('footLine')),
+        { class: 'title-bottom' },
+        h(
+          'nav',
+          { class: 'menu', 'aria-label': 'menu' },
+          btn(t('menuTutorial'), '#/tutorial', newcomer ? 'primary' : '', newcomer ? t('startHere') : undefined),
+          btn(t('menuLevels'), '#/levels', newcomer ? '' : 'primary', next && !newcomer ? t('menuContinue', { n: next }) : undefined),
+          btn(t('menuDaily'), '#/daily', '', `${t('levelN', { n: today })} · ${levelById(today).title[L]}`),
+        ),
+        h(
+          'div',
+          { class: 'title-foot' },
+          h('a', { href: 'https://github.com/jkkms/halt', target: '_blank', rel: 'noopener' }, t('github')),
+          h('span', {}, t('footLine')),
+        ),
       ),
     );
     const bar = app.bar({ dark: true });
@@ -58,7 +68,7 @@ export class TitleScreen implements Screen {
   shown(): void {
     const l1 = levelById(1);
     this.app.stage.mount(this.stageBox);
-    this.app.stage.show(runScene(l1, initialState(l1, { n: 5n }), null), { hud: false, loop: true, zoom: 1.45, shift: 0.2 });
+    this.app.stage.show(runScene(l1, initialState(l1, { n: 5n }), null), { hud: false, loop: true, zoom: 1.6 });
   }
 
   relang(): void {

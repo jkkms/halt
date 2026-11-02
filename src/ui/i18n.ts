@@ -169,6 +169,7 @@ const en = {
   muteLabel: 'Mute',
   github: 'Source on GitHub',
   footLine: 'KAIST CS424 · proofs checked by Z3 · MIT',
+  titleLine: 'A puzzle: judge whether a loop ends, then prove why',
   backTitle: 'Title',
   backLevels: 'Levels',
 
@@ -427,6 +428,7 @@ const ko: Strings = {
   muteLabel: '음소거',
   github: 'GitHub 소스',
   footLine: 'KAIST CS424 · 증명은 Z3가 검사 · MIT',
+  titleLine: '반복문이 끝나는지 판정하고, 왜 그런지 증명하는 퍼즐',
   backTitle: '처음 화면',
   backLevels: '레벨 목록',
 

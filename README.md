@@ -4,7 +4,7 @@
 
 플레이 / Play: <https://halt-seven-delta.vercel.app/>
 
-![Halt? title screen: a sandstone building at dusk, a walker with a lantern going down the stairs](docs/screenshot-title.png)
+![Halt? title screen: the question “Will this loop ever end?” centred over a sandstone building at dusk, a walker with a lantern going down the stairs, and the menu in one row below](docs/screenshot-title.png)
 
 [한국어](#한국어) · [English](#english)
 
@@ -26,6 +26,9 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 
 목표는 반복문 18개를 하나씩 **판정**하고 **증명**하는 것입니다. 레벨마다 두 단계를 거칩니다.
 
+- **처음 화면**: 가운데에 질문 "이 반복문, 끝나긴 할까?"와 하는 일을 말하는 한 줄이 있고, 그 뒤로 해 질 녘 건물의 계단을
+  사람이 내려갑니다. 아래에는 튜토리얼 · 레벨 · 오늘의 문제 버튼이 한 줄로 있습니다(처음 왔다면 튜토리얼이 강조되고, 휴대폰에서는
+  세로로 쌓입니다). 게임의 목적은 이 README에 길게 적혀 있고, 튜토리얼 1쪽에도 짧게 나옵니다.
 - **무대**: 반복문은 건물 앞 계단을 내려가는 사람입니다. 반복을 한 번 돌 때마다 한 칸 내려가고, 반복이 끝나면 출구로 나갑니다.
   걸음마다 **먼저 반복 조건을 확인**하므로, 처음부터 조건이 거짓이면 0걸음 만에 끝납니다(레벨 2에서 n = −3).
 - **1단계 · 판정**: "끝난다"(어떤 시작값에서도 언젠가 출구에 닿는다), "안 끝난다"(영원히 걷게 되는 시작값이 하나라도 있다),
@@ -43,12 +46,15 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 - **입력**: 레벨의 변수, 정수, `+ - * / %`, 괄호, `abs(e)`, `min(e, e)`, `max(e, e)`. 입력칸 아래 버튼을 누르면 바로 들어갑니다.
   `/`와 `%`는 나머지가 0 이상이 되도록 계산합니다(`-7 / 2 = -4`, `-7 % 2 = 1`). 레벨 7부터 난간 R(조건), 레벨 10부터 튜플 `(a, b)`.
 - **튜토리얼**은 게임 화면과 따로 있는 한 줄기 8쪽입니다(환영 · 계단 · 1단계 판정 · 2단계 증명(끝난다) · 평평한 계단과 지하 ·
-  2단계 증명(안 끝난다) · 입력 · 레벨 1). 다음/이전, 쪽 번호, 건너뛰기가 있고 마지막 쪽의 버튼으로 레벨 1을 시작합니다.
-  튜토리얼을 마치지 않았다면 레벨 1을 처음 열 때 튜토리얼을 권합니다.
-- 레벨 7과 10을 처음 열면 두 쪽짜리 소개(난간, 층과 계단)가 먼저 나옵니다. 그 레벨의 `?`로 다시 볼 수 있습니다.
+  2단계 증명(안 끝난다) · 입력 · 레벨 1). 설명은 무대의 걷는 사람이 **말풍선**으로 합니다. 말풍선은 그가 걷는 대로 따라가고,
+  꼬리는 그의 머리를 가리키며, 코드 카드와 버튼은 가리지 않고 무대의 글씨도 자리가 있으면 비켜 갑니다. 무대 아래 가운데의 작은 막대는
+  움직이지 않습니다. 거기에 "← 이전", 쪽 번호, "다음 →", 건너뛰기가 있고 ←/→ 키도 됩니다. 판정 버튼 예시, 직접 입력해 보는 칸,
+  레벨 1 카드처럼 쪽마다 있는 조작은 그 막대 바로 위의 작은 카드에 있습니다(휴대폰에서는 무대 아래). 마지막 쪽의 버튼으로 레벨 1을
+  시작합니다. 튜토리얼을 마치지 않았다면 레벨 1을 처음 열 때 튜토리얼을 권합니다.
+- 레벨 7과 10을 처음 열면 두 쪽짜리 소개(난간, 층과 계단)가 같은 말풍선으로 먼저 나옵니다. 그 레벨의 `?`로 다시 볼 수 있습니다.
 - 튜토리얼과 소개의 예제는 레벨이 아닌 **튜토리얼 전용 프로그램**이라 레벨의 답을 알려 주지 않습니다. 예외는 연습 레벨인 레벨 1의 `n`뿐입니다.
 
-![튜토리얼 4쪽: 남은 계단 수 n을 입력하면 계단이 3, 2, 1 높이로 그려진다](docs/screenshot-tutorial.png)
+![튜토리얼 4쪽: 걷는 사람이 말풍선으로 설명하고, 아래 카드에 남은 계단 수 n을 입력하면 계단이 3, 2, 1 높이로 그려진다](docs/screenshot-tutorial.png)
 
 | 판정 (1단계) | 내는 증명 (2단계) | 검사 |
 |---|---|---|
@@ -107,7 +113,7 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 ```sh
 npm i
 npm run dev          # http://localhost:5173 (개발 서버가 COOP/COEP 헤더를 보냄)
-npm test             # node --test: 파서, 18개 레벨 전부, 튜토리얼 전용 예제 전부(Z3), / % 의미 비교, 무대·튜토리얼 데이터 (Node 24 권장)
+npm test             # node --test: 파서, 18개 레벨 전부, 튜토리얼 전용 예제 전부(Z3), / % 의미 비교, 무대·튜토리얼 데이터, 말풍선 자리 (Node 24 권장)
 npm run build        # dist/ (base './', 하위 경로에서도 동작)
 npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤더 없이 제공 (GitHub Pages 흉내)
 ```
@@ -168,6 +174,10 @@ or three variables. Halt? handles both. The judge is the **Z3** SMT solver, runn
 
 Your goal is to **judge** and **prove** 18 loops, one by one. Every level has two steps.
 
+- **The title screen**: the question "Will this loop ever end?" and one line on what you do sit in the middle, with the walker
+  going down the stairs of a building at dusk behind them. Below, the tutorial, levels and daily puzzle buttons stand in one row
+  (the tutorial is highlighted on your first visit; on a phone they stack). What the game is for is told at length in this
+  README, and briefly on tutorial page 1.
 - **The stage**: a loop is a person walking down the stairs in front of a building. Each time the loop runs once, they go down
   one stair; when the loop ends, they leave by the exit. Before every step the walker **checks the loop condition first**, so a
   start where the condition is already false ends after 0 steps (level 2 with n = −3).
@@ -190,13 +200,18 @@ Your goal is to **judge** and **prove** 18 loops, one by one. Every level has tw
   the buttons under the answer box type them for you. `/` and `%` keep the remainder ≥ 0 (`-7 / 2 = -4`, `-7 % 2 = 1`).
   A railing R (a condition) from level 7, a tuple `(a, b)` from level 10.
 - **The tutorial** is its own screen: one flow of 8 pages (welcome · the stairs · step 1, verdict · step 2, proof (it ends) ·
-  flat stairs and the basement · step 2, proof (it never ends) · what you can type · level 1), with Next / Back, a page counter
-  and Skip; the last page starts level 1. If you have not finished it, the first visit to level 1 suggests it.
-- The first time you open level 7 or 10, a two-page intro comes first (railing; floors and steps). The level's `?` shows it again.
+  flat stairs and the basement · step 2, proof (it never ends) · what you can type · level 1). The walker on the stage explains
+  it in a **speech bubble** that follows him as he walks, its tail at his head; it never covers the code card or the buttons, and
+  it steps around the stage's own labels when there is room. A small bar at the bottom centre of the stage stays still: "← Back",
+  the page counter, "Next →" and Skip (the arrow keys work too). A page's hands-on part (the verdict buttons, the box to try an
+  expression, the level 1 card) sits in a small card just above that bar (under the stage on a phone). The last page starts
+  level 1. If you have not finished the tutorial, the first visit to level 1 suggests it.
+- The first time you open level 7 or 10, a two-page intro comes first (railing; floors and steps), told in the same bubble. The
+  level's `?` shows it again.
 - The tutorial and the intros only use **tutorial-only programs**, not levels, so they never give away a level's answer; the
   one exception is `n` for level 1, the practice level.
 
-![Tutorial page 4: typing the steps left n draws the stairs at heights 3, 2, 1](docs/screenshot-tutorial.png)
+![Tutorial page 4: the walker explains in a speech bubble; typing the steps left n in the card below draws the stairs at heights 3, 2, 1](docs/screenshot-tutorial.png)
 
 | Verdict (step 1) | Proof you give (step 2) | Checked by |
 |---|---|---|
@@ -255,7 +270,7 @@ bottomless zone Z, which is also an inductive invariant (true at the start and s
 ```sh
 npm i
 npm run dev          # http://localhost:5173 (the dev server sends COOP/COEP headers)
-npm test             # node --test: parser, all 18 levels, every tutorial-only example (Z3), / and % against Z3, stage and tutorial data (Node 24 recommended)
+npm test             # node --test: parser, all 18 levels, every tutorial-only example (Z3), / and % against Z3, stage and tutorial data, speech bubble placement (Node 24 recommended)
 npm run build        # dist/ (base './', works from a sub-path)
 npm run serve:pages  # serves dist/ at http://localhost:4174/halt/ with no special headers, like GitHub Pages
 ```
