@@ -346,13 +346,13 @@ export const INTROS: Record<number, Intro> = {
     pages: [
       {
         text: {
-          ko: '층 f와 그 층의 계단 s가 있어요.\n한 층을 다 내려가면 아래층 꼭대기(계단 5)에서 다시 시작해요. 그래서 숫자 하나로는 셀 수 없어요.',
-          en: 'There is a floor f and a step s on that floor.\nAfter the last step of a floor you start again at the top (step 5) of the floor below, so one number does not count it.',
+          ko: '층 f와 그 층의 계단 s가 있어요.\n한 층을 다 내려가면 아래층 꼭대기(계단 5)에서 다시 시작해요. 그래서 f나 s 하나만으로는 셀 수 없어요.',
+          en: 'There is a floor f and a step s on that floor.\nAfter the last step of a floor you start again at the top (step 5) of the floor below, so neither f nor s alone counts it.',
         },
         // SPEC_v0.7 §C: the rings sit on the steps where the floor changes (the first shot's were on the ruler)
         shots: [
           { scene: { k: 'run', prog: F, start: { f: 2, s: 2 }, V: '(f, s)' }, label: { ko: '한 층을 다 내려가면 아래층 꼭대기로', en: 'After a floor, the top of the floor below' }, tag: { ko: '층과 계단', en: 'floors' }, focus: ['floorStep'] },
-          { scene: { k: 'run', prog: F, start: { f: 2, s: 2 }, V: 'f + s' }, label: { ko: '숫자 하나(f + s)로 세면 아래층으로 갈 때 올라가요', en: 'One number (f + s) goes up when the floor changes' }, tag: { ko: 'f + s', en: 'f + s' }, focus: ['mark'] },
+          { scene: { k: 'run', prog: F, start: { f: 2, s: 2 }, V: 'f + s' }, label: { ko: 'f + s로 세면 아래층으로 갈 때 올라가요', en: 'Counting with f + s goes up when the floor changes' }, tag: { ko: 'f + s', en: 'f + s' }, focus: ['mark'] },
         ],
       },
       {
