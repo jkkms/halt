@@ -500,27 +500,6 @@ var {
   background: #f6b259;
 }
 
-/* returning players: Rush mode leads, first and largest (11/3) */
-.menu-btn.lead {
-  flex-grow: 1.45;
-  max-width: 380px;
-  padding: 17px 22px;
-}
-
-.menu-btn.lead .menu-label {
-  font-size: 22px;
-}
-
-@media (max-width: 760px) {
-  .menu-btn.lead {
-    padding: 12px 16px;
-  }
-
-  .menu-btn.lead .menu-label {
-    font-size: 19px;
-  }
-}
-
 .menu-label {
   font-size: 18px;
   font-weight: 780;
@@ -2998,28 +2977,9 @@ var {
   color: var(--ink-2);
 }
 
-/* the next button fills up while the next card comes by itself */
+/* the next button */
 .rush-next {
   position: relative;
-  overflow: hidden;
-}
-
-.rush-auto {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 3px;
-  width: 100%;
-  background: var(--amber-ink);
-  opacity: 0.35;
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition-property: transform;
-  transition-timing-function: linear;
-}
-
-.rush-auto.go {
-  transform: scaleX(1);
 }
 
 /* the stage: the walker runs the card's first sample after the answer */

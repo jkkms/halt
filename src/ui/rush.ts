@@ -42,9 +42,6 @@ import { recordRush } from './store.ts';
 
 export type RushMode = 'play' | 'practice';
 
-/** The next card comes by itself after this long (longer after a miss, to read the reason). */
-const AUTO_NEXT_MS = 2500;
-const AUTO_NEXT_MISS_MS = 4000;
 /** The last seconds of a card: the timer turns red. */
 const LOW_MS = 2000;
 /** Rows of the hall of fame shown at first, and after "show more". */
@@ -109,7 +106,6 @@ export class RushScreen implements Screen {
   private askedAt = 0;
   private deadline = 0;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
-  private autoTimer: ReturnType<typeof setTimeout> | null = null;
   private newBest = false;
   private ranked: RankedRun | null = null;
   private submit: Submit = { k: 'idle' };
@@ -495,13 +491,11 @@ export class RushScreen implements Screen {
     const a = st.answers.at(-1)!;
     const c = rushCardById(a.card);
     const head = a.right ? t('rushRight') : a.given === null ? t('rushTimeout') : t('rushWrong');
-    const auto = h('span', { class: 'rush-auto', 'aria-hidden': 'true' });
     const next = h(
       'button',
       { type: 'button', class: 'btn primary rush-next', 'data-role': 'next', onclick: () => this.next() },
       isLast(st) ? t('rushToEnd') : t('rushNext'),
       h('kbd', { 'aria-hidden': 'true' }, '↓'),
-      auto,
     );
     return h(
       'div',
@@ -509,10 +503,6 @@ export class RushScreen implements Screen {
         class: `rush-feedback ${a.right ? 'right' : 'wrong'}`,
         'data-result': a.right ? 'right' : a.given === null ? 'timeout' : 'wrong',
         'aria-live': 'polite',
-        // a tap anywhere on the answer box moves on, like ↓
-        onclick: (e: Event) => {
-          if (!(e.target as HTMLElement).closest('button')) this.next();
-        },
       },
       h(
         'p',
@@ -698,13 +688,7 @@ export class RushScreen implements Screen {
     (document.activeElement as HTMLElement | null)?.blur?.();
     this.build();
     this.showRun();
-    const wait = right ? AUTO_NEXT_MS : AUTO_NEXT_MISS_MS;
-    const bar = this.el.querySelector<HTMLElement>('.rush-auto');
-    if (bar) {
-      bar.style.transitionDuration = `${wait}ms`;
-      requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add('go')));
-    }
-    this.autoTimer = setTimeout(() => this.next(), wait);
+    // No timer here (author, 11/3): the reason stays until the player moves on with ↓ or the button.
   }
 
   /** The walker runs the first sample of the card just answered. */
@@ -765,9 +749,7 @@ export class RushScreen implements Screen {
 
   private stopTimers(): void {
     if (this.tickTimer) clearInterval(this.tickTimer);
-    if (this.autoTimer) clearTimeout(this.autoTimer);
     this.tickTimer = null;
-    this.autoTimer = null;
   }
 
   destroy(): void {
