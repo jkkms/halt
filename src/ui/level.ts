@@ -404,7 +404,8 @@ export class LevelScreen implements Screen {
           tuplesAllowed(l) ? ` ${t('syntaxTuple')}` : '',
           railingAllowed(l) ? ` ${t('railHelp')}` : '',
           l.locals.length ? ` ${t('localsNote', { names: l.locals.join(', ') })}` : '',
-          ` ${t('inputExample')}: `,
+          h('br'),
+          `${t('inputExample')}: `,
           h('code', {}, syntaxExample(l.vars, false)),
         ),
       );
