@@ -1,10 +1,13 @@
-// The cards of the rush mode: short loops to judge in 5 seconds (SPEC_rush, SPEC_rush2). New loops only: none is a
-// level or a renamed copy of one, because rush shows the right verdict after every card. Verdicts are proved in
+// The cards of the rush mode: short loops to judge in 5 seconds (SPEC_rush, SPEC_rush2). New loops only: none has
+// the loop of a level or a tutorial program, not even with other names and constants (test/rushCanon.ts loopShape),
+// because rush shows the right verdict after every card. None is clumsy code (test/rushLint.ts). Verdicts are proved in
 // the tests with the real judge or by simulation; the reference proofs live in test/rushAnswers.ts and
 // test/rushBankAnswers.ts, never in the game.
 //
-// The 36 hand-written cards (ids 201–236) are below; the generated bank (ids 1001 and up) is in rushBank.ts,
-// written by scripts/gen-rush-cards.ts.
+// The 32 hand-written cards (ids 202–238) are below; the generated bank (ids 1001 and up) is in rushBank.ts,
+// written by scripts/gen-rush-cards.ts. Six hand cards left on 11/3 because their loop was a level's loop with other
+// constants (201, 210, 211, 212: levels 1 and 8, the tutorial's grow; 229, 230: level 5); their ids are retired
+// (test/rushBankAnswers.ts RETIRED_IDS). 237 and 238 are the new twins of 202 and 213.
 // Tier 1: obvious. Tier 2: one trap. Tier 3: lookalike pairs and loops with two variables or more lines.
 // Cards with the same `pair` look alike, differ in one small thing, and get different verdicts.
 // `family` names the kind of loop; a run never shows two cards of a family within three positions.
@@ -16,7 +19,7 @@ export type RushVerdict = 'ends' | 'never';
 export type Tier = 1 | 2 | 3;
 
 export interface RushCardDef {
-  /** 201–236 by hand, 1001 and up generated: never the id of a level or a tutorial program. */
+  /** 202–238 by hand, 1001 and up generated: never the id of a level or a tutorial program, never a retired id. */
   id: number;
   tier: Tier;
   family: string;
@@ -44,20 +47,6 @@ export interface RushCard extends Level {
 export const HAND_DEFS: RushCardDef[] = [
   // ------------------------------------------------------------ tier 1: obvious
   {
-    id: 201,
-    tier: 1,
-    family: 'down',
-    pair: 'step3',
-    code: `while (x > 0) {
-  x := x - 3
-}`,
-    inputs: ['x'],
-    start: 'true',
-    verdict: 'ends',
-    why: { ko: '`x`가 매번 3씩 줄어요. 곧 0 이하가 돼서 멈춰요.', en: '`x` drops by 3 every time, so it soon reaches 0 or less.' },
-    samples: [{ x: 7 }, { x: 0 }],
-  },
-  {
     id: 202,
     tier: 1,
     family: 'down',
@@ -70,6 +59,20 @@ export const HAND_DEFS: RushCardDef[] = [
     verdict: 'never',
     why: { ko: '`x`가 커지기만 해서 `x > 0`이 계속 참이에요. x = 1: 1, 4, 7, …', en: '`x` only grows, so `x > 0` stays true. x = 1: 1, 4, 7, …' },
     samples: [{ x: 1 }, { x: 0 }],
+  },
+  {
+    id: 237,
+    tier: 1,
+    family: 'down',
+    pair: 'step3',
+    code: `while (x < 0) {
+  x := x + 3
+}`,
+    inputs: ['x'],
+    start: 'true',
+    verdict: 'ends',
+    why: { ko: '`x`가 매번 3씩 커져요. 곧 0 이상이 돼서 멈춰요.', en: '`x` goes up by 3 every time, so it soon reaches 0 or more.' },
+    samples: [{ x: -7 }, { x: 0 }],
   },
   {
     id: 203,
@@ -180,48 +183,6 @@ export const HAND_DEFS: RushCardDef[] = [
 
   // ------------------------------------------------------------ tier 2: one trap
   {
-    id: 210,
-    tier: 2,
-    family: 'neq',
-    pair: 'down1',
-    code: `while (x != 0) {
-  x := x - 1
-}`,
-    inputs: ['x'],
-    start: 'true',
-    verdict: 'never',
-    why: { ko: '`x`가 음수면 0에서 멀어지기만 해요. x = −1: −1, −2, −3, …', en: 'A negative `x` only moves away from 0. x = −1: −1, −2, −3, …' },
-    samples: [{ x: -1 }, { x: 3 }, { x: 0 }],
-  },
-  {
-    id: 211,
-    tier: 2,
-    family: 'neq',
-    pair: 'down1',
-    code: `while (x != 0) {
-  x := x - 1
-}`,
-    inputs: ['x'],
-    start: 'x >= 0',
-    verdict: 'ends',
-    why: { ko: 'x ≥ 0에서 1씩 내려가면 꼭 0에 닿아요. 남은 계단 수는 `x`예요.', en: 'From x ≥ 0, going down by 1 always lands on 0. The steps left are `x`.' },
-    samples: [{ x: 4 }, { x: 0 }],
-  },
-  {
-    id: 212,
-    tier: 2,
-    family: 'neq',
-    pair: 'by2',
-    code: `while (x != 10) {
-  x := x + 2
-}`,
-    inputs: ['x'],
-    start: 'x <= 10',
-    verdict: 'never',
-    why: { ko: '`x`가 홀수면 10을 건너뛰어요. x = 9: 9, 11, 13, …', en: 'An odd `x` jumps over 10. x = 9: 9, 11, 13, …' },
-    samples: [{ x: 9 }, { x: 6 }, { x: 10 }],
-  },
-  {
     id: 213,
     tier: 2,
     family: 'up',
@@ -234,6 +195,20 @@ export const HAND_DEFS: RushCardDef[] = [
     verdict: 'ends',
     why: { ko: '`x`가 2씩 커지다가 10 이상이 되면 멈춰요. 10을 건너뛰어도 괜찮아요.', en: '`x` goes up by 2 and stops once it is 10 or more; skipping 10 is fine.' },
     samples: [{ x: 5 }, { x: 10 }],
+  },
+  {
+    id: 238,
+    tier: 2,
+    family: 'up',
+    pair: 'by2',
+    code: `while (x < 10) {
+  x := x * 2
+}`,
+    inputs: ['x'],
+    start: 'true',
+    verdict: 'never',
+    why: { ko: 'x = 0이면 `0 * 2 = 0`이라 제자리예요. `x < 10`이 계속 참이에요.', en: 'From x = 0, `0 * 2 = 0`: it stays put and `x < 10` stays true.' },
+    samples: [{ x: 0 }, { x: 12 }],
   },
   {
     id: 214,
@@ -468,42 +443,6 @@ export const HAND_DEFS: RushCardDef[] = [
     samples: [
       { s: 0, t: 1, d: 0 },
       { s: 0, t: 7, d: 2 },
-    ],
-  },
-  {
-    id: 229,
-    tier: 3,
-    family: 'chase',
-    pair: 'chase',
-    code: `while (x < y) {
-  x := x + 2
-  y := y + 1
-}`,
-    inputs: ['x', 'y'],
-    start: 'true',
-    verdict: 'ends',
-    why: { ko: '`x`가 `y`보다 1씩 더 빨라요. 차이 `y - x`가 매번 1씩 줄어요.', en: '`x` gains 1 on `y` every time: the gap `y - x` shrinks by 1.' },
-    samples: [
-      { x: 0, y: 4 },
-      { x: 3, y: 1 },
-    ],
-  },
-  {
-    id: 230,
-    tier: 3,
-    family: 'chase',
-    pair: 'chase',
-    code: `while (x < y) {
-  x := x + 1
-  y := y + 1
-}`,
-    inputs: ['x', 'y'],
-    start: 'true',
-    verdict: 'never',
-    why: { ko: '둘 다 1씩 커지면 차이 `y - x`는 그대로예요.', en: 'Both go up by 1, so the gap `y - x` never changes.' },
-    samples: [
-      { x: 0, y: 1 },
-      { x: 2, y: 2 },
     ],
   },
   {

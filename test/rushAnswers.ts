@@ -1,7 +1,7 @@
 // Reference proofs for the rush cards (kept out of the game bundle, like test/answers.ts).
 // ends: steps left V (and a railing R where the start condition matters), checked by the real judge.
 // never: an allowed start whose run repeats a state (cycle), or a start and a bottomless zone Z checked by the judge.
-// The 36 hand-written cards are here; the generated bank's proofs are in rushBankAnswers.ts.
+// The 32 hand-written cards are here; the generated bank's proofs are in rushBankAnswers.ts.
 
 import type { EndsAnswer } from './answers.ts';
 import { BANK_ANSWERS } from './rushBankAnswers.ts';
@@ -10,8 +10,8 @@ export type RushNever = { start: Record<string, number>; expect: 'cycle' } | { s
 export type RushProof = { ends?: EndsAnswer; never?: RushNever };
 
 const HAND_ANSWERS: Record<number, RushProof> = {
-  201: { ends: { V: 'x' } },
   202: { never: { start: { x: 1 }, expect: 'zone', Z: 'x > 0' } },
+  237: { ends: { V: '-x' } },
   203: { ends: { V: '10 - k' } },
   204: { never: { start: { k: 9 }, expect: 'zone', Z: 'k < 10' } },
   205: { ends: { V: 'n' } },
@@ -19,10 +19,8 @@ const HAND_ANSWERS: Record<number, RushProof> = {
   207: { never: { start: { x: 1 }, expect: 'zone', Z: 'x != 0' } },
   208: { ends: { V: 'a' } },
   209: { never: { start: { a: 0, b: 1 }, expect: 'zone', Z: 'b > 0' } },
-  210: { never: { start: { x: -1 }, expect: 'zone', Z: 'x < 0' } },
-  211: { ends: { V: 'x', R: 'x >= 0' } },
-  212: { never: { start: { x: 9 }, expect: 'zone', Z: 'x % 2 == 1' } },
   213: { ends: { V: '10 - x' } },
+  238: { never: { start: { x: 0 }, expect: 'cycle' } },
   214: { never: { start: { x: 3 }, expect: 'cycle' } },
   215: { ends: { V: 'x' } },
   216: { ends: { V: 'x' } },
@@ -39,8 +37,6 @@ const HAND_ANSWERS: Record<number, RushProof> = {
   226: { never: { start: { x: 1 }, expect: 'cycle' } },
   227: { ends: { V: 't - s', R: 'd >= 1' } },
   228: { never: { start: { s: 0, t: 1, d: 0 }, expect: 'cycle' } },
-  229: { ends: { V: 'y - x' } },
-  230: { never: { start: { x: 0, y: 1 }, expect: 'zone', Z: 'x < y' } },
   231: { ends: { V: 'x' } },
   232: { never: { start: { x: 0, y: 1 }, expect: 'zone', Z: 'y > 0' } },
   // below 3: up to 10 first (a floor down); above 3: one step down at a time
