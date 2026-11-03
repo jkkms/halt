@@ -14,6 +14,7 @@ import { isMuted, setMuted, sfx, unlock } from './audio.ts';
 import { h } from './dom.ts';
 import { defaultLang, lang, setLang, t } from './i18n.ts';
 import { LevelScreen } from './level.ts';
+import { closeAllModals } from './overlay.ts';
 import { RushScreen } from './rush.ts';
 import { FameScreen } from './fame.ts';
 import { SelectScreen } from './select.ts';
@@ -147,6 +148,8 @@ export class App {
         next = this.levelCache = new LevelScreen(this, id);
       }
     } else next = new TitleScreen(this);
+    // a dialog the old screen opened (e.g. the tutorial suggestion on level 1) does not follow to the next one
+    closeAllModals();
     const prev = this.screen;
     if (prev && prev !== next && prev !== this.levelCache) prev.destroy?.();
     this.screen = next;

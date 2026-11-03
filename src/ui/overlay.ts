@@ -7,9 +7,18 @@ export interface ModalButton {
   onClick?: () => void;
 }
 
+/** The open dialogs' close functions: a dialog belongs to the screen that opened it. */
+const open = new Set<() => void>();
+
+/** Close every open dialog (the route changed, so the screen that opened them is gone). */
+export function closeAllModals(): void {
+  for (const close of [...open]) close();
+}
+
 export function openModal(title: string, body: (Node | string)[], buttons: ModalButton[], opts: { wide?: boolean } = {}): () => void {
   const prevFocus = document.activeElement as HTMLElement | null;
   const close = () => {
+    open.delete(close);
     overlay.remove();
     document.removeEventListener('keydown', onKey);
     prevFocus?.focus?.();
@@ -50,6 +59,7 @@ export function openModal(title: string, body: (Node | string)[], buttons: Modal
     dialog,
   );
   document.body.append(overlay);
+  open.add(close);
   document.addEventListener('keydown', onKey);
   (btns.find((_, i) => buttons[i]!.primary) ?? btns[0])?.focus();
   return close;
