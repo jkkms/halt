@@ -1,8 +1,8 @@
 // The tutorial player (SPEC_v0.6, SPEC_v0.7 §A): the stage fills the screen and the scene stays in its middle; the
-// narration is a wide band along the bottom of the stage whose top edge, left and width stay put on every page and
-// whose height is that of the page: the controls (the chapter and page counter, Skip, Back, Next) in a row at its
-// top, then the page text at its left and the page's interactive piece beside it at its right (under the text when
-// there is no room). The shot buttons and the
+// narration is a wide band along the bottom of the stage whose bottom edge, left and width stay put on every page and
+// whose height is that of the page: the page text at its left and the page's interactive piece beside it at its right
+// (under the text when there is no room), then the controls (the chapter and page counter, Skip, Back, Next) in a row
+// at its bottom. The shot buttons and the
 // caption sit along the top edge of the stage, between the step counter (top left) and the code card (top right).
 // Phones: the stage, then the code card, then the narration with its controls, then the piece. Amber rings, one per
 // piece, show what the text talks about. The same player shows the 14-page tutorial and the intros before levels 5,
@@ -81,9 +81,9 @@ export class TutorialScreen implements Screen {
   private extraBox = h('div', { class: 'tut-extra', 'data-role': 'extra' });
   private controls = h('nav', { class: 'tut-controls' });
   /**
-   * The narration (SPEC_v0.7 §A as changed by the author): one band whose top edge, left and width stay put on every
-   * page, as tall as this page's text (and piece) need. Wide screens: the controls in a row at its top, then the
-   * text with the piece beside it; phones: the text, then the controls.
+   * The narration (SPEC_v0.7 §A as changed by the author): one band whose bottom edge, left and width stay put on
+   * every page, as tall as this page's text (and piece) need. The text (with the piece beside it on a wide screen),
+   * then the controls in a row at the bottom.
    */
   private narrText = h('div', { class: 'tut-narr-text', 'aria-live': 'polite' });
   private narrBody = h('div', { class: 'tut-narr-body' }, this.narrText);
@@ -233,7 +233,7 @@ export class TutorialScreen implements Screen {
     this.codeBox.classList.toggle('focus-code', focus.includes('code'));
     this.codeBox.classList.toggle('focus-line', focus.includes('codeLine'));
 
-    // the controls: chapter · page, Skip, Back, Next (a row at the band's top on a wide screen, so Next never moves)
+    // the controls: chapter · page, Skip, Back, Next (a row at the band's bottom, which stays put, so Next never moves)
     const n = this.pages.length;
     const prev = h('button', { type: 'button', class: 'btn small ghost tc-prev', 'data-role': 'prev', disabled: this.page === 0, onclick: () => this.go(this.page - 1) }, `← ${t('prevPage')}`);
     const target = this.mode.k === 'tutorial' ? 1 : this.mode.level;

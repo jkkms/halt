@@ -1,11 +1,11 @@
 // Where the level screen's guide box goes (SPEC_guide §A, SPEC_v0.7 §A as changed by the author). Pure geometry,
 // no DOM, so `npm test` checks it.
 //
-// Wide screens: a wide band along the bottom of the stage column (its full width less a margin), the tour's title
-// and controls in a row at its top, the text under them in a column of a comfortable reading width. Its top edge,
+// Wide screens: a wide band along the bottom of the stage column (its full width less a margin), the text in a
+// column of a comfortable reading width, then the tour's title and controls in a row at its bottom. Its bottom edge,
 // left and width stay put for the whole tour; its height follows the step's text; the scene is framed above the
-// tallest step's band. Narrow screens (the stacked layout, ≤ 900 px): a sheet near the bottom of the viewport with
-// its top edge fixed in the same way; the page scrolls each target into the room above it.
+// tallest step's band. Narrow screens (the stacked layout, ≤ 900 px): a sheet at the bottom of the viewport with its
+// bottom edge fixed in the same way; the page scrolls each target into the room above the tallest step's sheet.
 import { BAND } from './tutLayout.ts';
 import type { Box, Insets } from './tutLayout.ts';
 

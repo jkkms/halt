@@ -1241,11 +1241,11 @@ var {
   font-weight: 700;
 }
 
-/* wide screens: a band along the bottom of the stage; the controls in a row at its top (Next never moves), then the
-   text in a column of a comfortable width, the page's piece beside it at the right */
+/* wide screens: a band along the bottom of the stage; the text in a column of a comfortable width with the page's
+   piece beside it at the right, then the controls in a row at its bottom (the bottom stays put, so Next never moves) */
 .tut-desk .tut-narr {
   position: absolute;
-  padding: 0 20px 14px;
+  padding: 16px 20px 10px;
   /* bottom-aligned in the slot of the tallest page (top = that page's top, --band-h = its height) */
   transform: translateY(calc(var(--band-h, 100%) - 100%));
 }
@@ -1383,14 +1383,16 @@ var {
   pointer-events: none;
 }
 
-/* the title and the controls in a row at the top; the text under them */
+/* the text, then the title and the controls in a row at the bottom (author, 11/3: the box is bottom-aligned, so
+   Next stays put there) */
 .guide-top {
+  order: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  padding: 8px 12px 7px 18px;
-  border-bottom: 1px solid rgba(201, 154, 98, 0.35);
+  padding: 7px 12px 8px 18px;
+  border-top: 1px solid rgba(201, 154, 98, 0.35);
 }
 
 .guide-box.stack-top .guide-head {
@@ -1408,7 +1410,7 @@ var {
 
 .guide-box .tut-narr-text {
   max-width: var(--text-w, 800px);
-  padding: 10px 18px 14px;
+  padding: 14px 18px 10px;
 }
 
 .guide-nav {
@@ -1463,10 +1465,9 @@ var {
 }
 
 .tut-desk .tut-controls {
-  order: -1;
-  margin: 0 -8px 10px -4px;
-  padding: 8px 0 7px;
-  border-bottom: 1px solid rgba(201, 154, 98, 0.35);
+  margin: 12px -8px 0 -4px;
+  padding: 9px 0 0;
+  border-top: 1px solid rgba(201, 154, 98, 0.35);
 }
 
 .tc-count {
