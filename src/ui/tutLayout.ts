@@ -26,7 +26,7 @@ export interface Insets {
 export const BAND = {
   margin: 16, // from the stage's sides and bottom
   padX: 22, // inside the band, left and right (its 2 px border and 20 px padding)
-  textMax: 800, // the text column's widest: a comfortable line
+  textMax: 1200, // the text column's widest (author, 11/3: 800 wrapped early and left the band's right half empty)
   textMin: 400, // a narrower column leaves no room beside it: the piece goes under the text
   pieceMin: 330,
   pieceMax: 440,
@@ -58,14 +58,17 @@ export function bandBox(stage: { w: number; h: number }, height: number): Box {
 export interface BandCols {
   text: { x: number; w: number };
   piece: { x: number; w: number } | null;
+  /** The text column on a page with no piece: the band's inner width, at most `textMax`. */
+  full: number;
 }
 
 export function bandColumns(bandW: number): BandCols {
   const inner = Math.max(0, bandW - 2 * BAND.padX);
   const piece = Math.round(Math.max(BAND.pieceMin, Math.min(BAND.pieceMax, inner * BAND.pieceFrac)));
   const beside = Math.min(BAND.textMax, inner - piece - BAND.gap);
-  if (beside >= BAND.textMin) return { text: { x: BAND.padX, w: Math.round(beside) }, piece: { x: Math.round(bandW - BAND.padX - piece), w: piece } };
-  return { text: { x: BAND.padX, w: Math.round(Math.min(BAND.textMax, inner)) }, piece: null };
+  const full = Math.round(Math.min(BAND.textMax, inner));
+  if (beside >= BAND.textMin) return { text: { x: BAND.padX, w: Math.round(beside) }, piece: { x: Math.round(bandW - BAND.padX - piece), w: piece }, full };
+  return { text: { x: BAND.padX, w: full }, piece: null, full };
 }
 
 /** The width the piece is laid out at: its slot beside the text, or (no slot) under the text at most this wide. */

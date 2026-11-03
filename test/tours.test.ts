@@ -265,13 +265,14 @@ describe('where the box goes', () => {
       assert.deepEqual(band, { x: TOUR.margin, y: st.h - TOUR.margin - 220, w: st.w - 2 * TOUR.margin, h: 220 });
       assert.ok(within({ x: 0, y: 0, ...st }, band));
       const text = deskTextWidth(band.w);
-      assert.ok(text <= 800 && text <= band.w - 2 * TOUR.padX, `${st.w}: text ${text}`);
+      assert.ok(text <= 1200 && text <= band.w - 2 * TOUR.padX, `${st.w}: text ${text}`);
     }
-    assert.equal(deskTextWidth(908), 800);
+    assert.equal(deskTextWidth(908), 908 - 2 * TOUR.padX);
+    assert.equal(deskTextWidth(1400), 1200);
     assert.equal(deskTextWidth(748), 712);
   });
 
-  it('wide: the top edge is that of the tallest step; a shorter step keeps it (only the height changes)', () => {
+  it('wide: the slot is the tallest step\'s (a shorter step sits at its bottom, by CSS); only the height changes', () => {
     const st = stages[0]!;
     const tallest = deskBox(st, 240);
     // what the view does for a step: the same top, left and width, its own height

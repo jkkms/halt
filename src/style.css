@@ -1260,6 +1260,11 @@ var {
   min-height: 3.2em;
 }
 
+/* a page with no piece: the text takes the band's width (at most 1200 px) */
+.tut-desk:not(.has-extra) .tut-narr .tut-narr-text {
+  width: var(--text-full, var(--text-w, 760px));
+}
+
 .tut-desk .tut-narr .tut-extra {
   flex: 0 0 auto;
   width: var(--piece-w, 400px);

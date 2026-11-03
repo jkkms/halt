@@ -29,9 +29,11 @@ describe('the band', () => {
     }
   });
 
-  it('a text column of at most 800 px, the piece beside it at the right; no room: the piece goes under the text', () => {
+  it('a text column of at most 1200 px, the piece beside it at the right; no room: the piece goes under the text', () => {
     const wide = bandColumns(1408);
-    assert.deepEqual(wide.text, { x: BAND.padX, w: 800 });
+    assert.deepEqual(wide.text, { x: BAND.padX, w: 1408 - 2 * BAND.padX - 440 - BAND.gap });
+    assert.equal(bandColumns(1100).full, 1100 - 2 * BAND.padX, 'a page with no piece: the whole inner width');
+    assert.equal(wide.full, 1200, 'at most 1200 px');
     assert.deepEqual(wide.piece, { x: 1408 - BAND.padX - 440, w: 440 });
     const mid = bandColumns(1248);
     assert.ok(mid.piece && mid.text.w + BAND.gap + mid.piece.w <= 1248 - 2 * BAND.padX, JSON.stringify(mid));

@@ -406,9 +406,10 @@ export class TutorialScreen implements Screen {
    */
   private bodyHeights(cols: BandCols, bandW: number): number[] {
     const L = lang();
-    this.measureText.style.width = `${cols.text.w}px`;
     this.measurePiece.style.width = `${pieceWidth(cols, bandW)}px`;
     return this.pages.map((p) => {
+      // a page with no piece has the band's whole width for its text
+      this.measureText.style.width = `${p.extra ? cols.text.w : cols.full}px`;
       this.measureText.replaceChildren(...narrationNodes(p.text[L]));
       const text = this.measureText.offsetHeight;
       const piece = p.extra ? this.extra(p, false) : null;
@@ -444,7 +445,7 @@ export class TutorialScreen implements Screen {
         this.cols = null;
         this.font = '';
         if (ex.parentElement !== main) this.narr.after(ex);
-        for (const p of ['left', 'top', 'width', '--text-w', '--piece-w', '--band-h']) this.narr.style.removeProperty(p);
+        for (const p of ['left', 'top', 'width', '--text-w', '--text-full', '--piece-w', '--band-h']) this.narr.style.removeProperty(p);
         this.narr.className = 'tut-narr';
       } else {
         if (ex.parentElement !== this.narrBody) this.narrBody.append(ex);
@@ -454,6 +455,7 @@ export class TutorialScreen implements Screen {
         this.narr.style.left = `${band.x}px`;
         this.narr.style.width = `${band.w}px`;
         this.narr.style.setProperty('--text-w', `${cols.text.w}px`);
+        this.narr.style.setProperty('--text-full', `${cols.full}px`);
         this.narr.style.setProperty('--piece-w', `${pieceWidth(cols, band.w)}px`);
         this.narr.classList.toggle('stacked', !cols.piece);
         // what the band needs besides its body: the controls row and the padding
