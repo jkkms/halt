@@ -1,0 +1,10 @@
+# halt-scores: the rush hall of fame for Halt? (SPEC_rush2 §F). See worker/README in the report for the commands.
+name = "halt-scores"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "halt-scores"
+# Fill in after `npx wrangler@4 d1 create halt-scores` (the main session does this; never commit a guess).
+database_id = "REPLACE_WITH_D1_DATABASE_ID"

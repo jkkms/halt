@@ -1,6 +1,8 @@
 // Progress kept in localStorage. Every access is wrapped: the game must work without storage
 // (private windows, blocked site data, thumbnails).
 import type { Lang } from '../core/levels.ts';
+import { checkNick, normalizeNick } from '../core/nick.ts';
+import { SEEN_KEPT } from '../core/rush.ts';
 
 export interface DailyRecord {
   level: number;
@@ -9,10 +11,17 @@ export interface DailyRecord {
   length: number | null;
 }
 
-/** Rush mode: the best score of each day's rush (UTC date) and the best practice score. */
+/**
+ * Rush mode (SPEC_rush2): the best ranked score and the best practice score on this device, the cards answered here
+ * (newest last, so a new run asks unseen cards first), the nickname and the random device token for the hall of fame.
+ */
 export interface RushRecord {
-  daily: Record<string, number>;
+  best: number;
   practiceBest: number;
+  seen: number[];
+  nick?: string;
+  /** crypto.randomUUID(); only ever sent in a POST body, never shown and never put in a URL. */
+  token?: string;
 }
 
 export interface Saved {
@@ -31,34 +40,27 @@ export interface Saved {
 const KEY = 'it-ends:v1';
 
 function blank(): Saved {
-  return { best: {}, introsShown: [], daily: {}, rush: { daily: {}, practiceBest: 0 } };
+  return { best: {}, introsShown: [], daily: {}, rush: { best: 0, practiceBest: 0, seen: [] } };
 }
 
 const numbers = (x: unknown): number[] => (Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []);
 
-/** Days of rush scores kept (the newest). */
-export const RUSH_DAYS_KEPT = 30;
+const score = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : 0);
 
+/** The rush record from storage; anything odd is dropped (old saves had per-day scores of the 15-second rush). */
 function rushRecord(x: unknown): RushRecord {
   const r = (x ?? {}) as Partial<RushRecord>;
-  const days = Object.entries(r.daily ?? {})
-    .filter((e): e is [string, number] => /^\d{4}-\d{2}-\d{2}$/.test(e[0]) && typeof e[1] === 'number' && e[1] >= 0)
-    .sort(([a], [b]) => (a < b ? 1 : -1))
-    .slice(0, RUSH_DAYS_KEPT);
-  return { daily: Object.fromEntries(days), practiceBest: typeof r.practiceBest === 'number' && r.practiceBest >= 0 ? r.practiceBest : 0 };
+  const seen = Array.isArray(r.seen) ? [...new Set(r.seen.filter((n): n is number => Number.isInteger(n)))].slice(-SEEN_KEPT) : [];
+  const nick = typeof r.nick === 'string' && checkNick(r.nick).ok ? normalizeNick(r.nick) : undefined;
+  const token = typeof r.token === 'string' && /^[0-9a-f-]{20,64}$/i.test(r.token) ? r.token : undefined;
+  return { best: score(r.best), practiceBest: score(r.practiceBest), seen, ...(nick ? { nick } : {}), ...(token ? { token } : {}) };
 }
 
-/** Keep the better score; returns true when it is a new best. */
-export function recordRush(rec: RushRecord, day: string | null, score: number): boolean {
-  if (day === null) {
-    if (score <= rec.practiceBest) return false;
-    rec.practiceBest = score;
-    return true;
-  }
-  const prev = rec.daily[day];
-  if (prev !== undefined && score <= prev) return false;
-  rec.daily[day] = score;
-  Object.assign(rec, rushRecord(rec));
+/** Keep the better score of a ranked run or of practice; returns true when it is a new best. */
+export function recordRush(rec: RushRecord, mode: 'rush' | 'practice', points: number): boolean {
+  const key = mode === 'rush' ? 'best' : 'practiceBest';
+  if (points <= rec[key]) return false;
+  rec[key] = points;
   return true;
 }
 

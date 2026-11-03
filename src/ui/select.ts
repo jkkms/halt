@@ -1,7 +1,6 @@
 // Level select: cards grouped by chapter, with best stars and a tiny code preview (never the verdict).
-import { dailyLevelId, utcDateKey } from '../core/game.ts';
 import { codePreview, GROUPS, recommendedNext } from '../core/groups.ts';
-import { levelById, LEVELS } from '../core/levels.ts';
+import { levelById } from '../core/levels.ts';
 import type { App, Screen } from './app.ts';
 import { h } from './dom.ts';
 import { starsText } from './format.ts';
@@ -21,7 +20,6 @@ export class SelectScreen implements Screen {
     const app = this.app;
     const L = lang();
     const next = recommendedNext(app.saved.best);
-    const today = dailyLevelId(utcDateKey(new Date()), LEVELS.length);
     const needTutorial = app.saved.tutorial !== 'done';
     const card = (id: number) => {
       const l = levelById(id);
@@ -32,7 +30,7 @@ export class SelectScreen implements Screen {
         h('span', { class: 'lv-top' }, h('span', { class: 'lv-num' }, String(id)), h('span', { class: 'lv-stars', 'aria-label': `${best}/3` }, starsText(best))),
         h('span', { class: 'lv-title' }, l.title[L]),
         h('code', { class: 'lv-code' }, codePreview(l)),
-        h('span', { class: 'lv-tags' }, id === next ? h('span', { class: 'tag next' }, t('nextUp')) : null, id === today ? h('span', { class: 'tag today' }, t('todayTag')) : null),
+        h('span', { class: 'lv-tags' }, id === next ? h('span', { class: 'tag next' }, t('nextUp')) : null),
       );
     };
     this.el.replaceChildren(

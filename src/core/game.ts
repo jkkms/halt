@@ -238,20 +238,11 @@ export function holds(e: Expr, s: State): boolean {
   return evalBool(e, s);
 }
 
-// ------------------------------------------------------------ daily puzzle
+// ------------------------------------------------------------ dates and the share line of a level (the daily puzzle
+// is gone since 11/3; level.ts still holds its share code, unreachable)
 
 export function utcDateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-/** Deterministic level of the day (FNV-1a hash of the UTC date). */
-export function dailyLevelId(key: string, count: number): number {
-  let h = 0x811c9dc5;
-  for (const ch of key) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return (h % count) + 1;
 }
 
 export function shareText(key: string, levelId: number, marks: string[], length: number | null): string {

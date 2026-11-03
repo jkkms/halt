@@ -1,12 +1,15 @@
 // Reference proofs for the rush cards (kept out of the game bundle, like test/answers.ts).
 // ends: steps left V (and a railing R where the start condition matters), checked by the real judge.
 // never: an allowed start whose run repeats a state (cycle), or a start and a bottomless zone Z checked by the judge.
+// The 36 hand-written cards are here; the generated bank's proofs are in rushBankAnswers.ts.
 
 import type { EndsAnswer } from './answers.ts';
+import { BANK_ANSWERS } from './rushBankAnswers.ts';
 
 export type RushNever = { start: Record<string, number>; expect: 'cycle' } | { start: Record<string, number>; expect: 'zone'; Z: string };
+export type RushProof = { ends?: EndsAnswer; never?: RushNever };
 
-export const RUSH_ANSWERS: Record<number, { ends?: EndsAnswer; never?: RushNever }> = {
+const HAND_ANSWERS: Record<number, RushProof> = {
   201: { ends: { V: 'x' } },
   202: { never: { start: { x: 1 }, expect: 'zone', Z: 'x > 0' } },
   203: { ends: { V: '10 - k' } },
@@ -46,3 +49,5 @@ export const RUSH_ANSWERS: Record<number, { ends?: EndsAnswer; never?: RushNever
   235: { never: { start: { x: 3 }, expect: 'cycle' } },
   236: { ends: { V: '10 - x' } },
 };
+
+export const RUSH_ANSWERS: Record<number, RushProof> = { ...HAND_ANSWERS, ...BANK_ANSWERS };

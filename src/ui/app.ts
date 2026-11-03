@@ -2,9 +2,10 @@
 //   #/              title
 //   #/tutorial      the tutorial        #/tutorial/3   its page 3
 //   #/intro/9       the intro before level 9 (also #/intro/10, and #/intro/9/2 for its page 2)
-//   #/levels        level select        #/level/7      a level        #/daily   today's level
-//   #/rush          rush mode           #/rush/today   today's rush   #/rush/practice   practice
-import { dailyLevelId, utcDateKey } from '../core/game.ts';
+//   #/levels        proof mode (level select)          #/level/7      a level
+//   #/rush          rush mode: explanation, nickname, hall of fame
+//   #/rush/play     a ranked rush run                  #/rush/practice   a practice run
+//   (#/daily, the old daily puzzle, and #/rush/today now lead to the title and the rush screen.)
 import type { Judge } from '../core/judge.ts';
 import { LEVELS } from '../core/levels.ts';
 import { loadJudge, type Z3Status } from '../z3/browser.ts';
@@ -47,7 +48,7 @@ export class App {
   private screen: Screen | null = null;
   private levelCache: LevelScreen | null = null;
   private route: string | null = null;
-  /** Where an intro returns to (the level or the daily puzzle that opened it). */
+  /** Where an intro returns to (the level that opened it). */
   private introReturn: Record<number, string> = {};
 
   constructor(root: HTMLElement) {
@@ -114,8 +115,12 @@ export class App {
     if (route === this.route && this.screen) return;
     let next: Screen;
     const [head, arg, sub] = parts;
-    const daily = head === 'daily' ? utcDateKey(new Date()) : null;
-    const levelId = head === 'daily' || (head === 'level' && arg) ? (daily ? dailyLevelId(daily, LEVELS.length) : Math.min(LEVELS.length, Math.max(1, Number(arg) || 1))) : null;
+    // Old links (11/3): the daily puzzle is gone, and rush has no "today's rush" any more.
+    if (head === 'daily' || (head === 'rush' && arg === 'today')) {
+      location.replace(head === 'daily' ? '#/' : '#/rush');
+      return;
+    }
+    const levelId = head === 'level' && arg ? Math.min(LEVELS.length, Math.max(1, Number(arg) || 1)) : null;
     // The first time level 9 or 10 opens, its short intro comes first.
     if (levelId !== null && INTRO_LEVELS.includes(levelId) && !this.saved.introsShown.includes(levelId)) {
       this.saved.introsShown.push(levelId);
@@ -129,14 +134,14 @@ export class App {
       const level = Number(arg);
       next = new TutorialScreen(this, { k: 'intro', level, returnTo: this.introReturn[level] ?? `#/level/${level}` }, (Number(sub) || 1) - 1);
     } else if (head === 'levels') next = new SelectScreen(this);
-    else if (head === 'rush') next = new RushScreen(this, arg === 'today' || arg === 'practice' ? arg : null);
+    else if (head === 'rush') next = new RushScreen(this, arg === 'play' || arg === 'practice' ? arg : null);
     else if (levelId !== null) {
       const id = levelId;
       const cached = this.levelCache;
-      if (cached && cached.levelId === id && cached.daily === daily) next = cached;
+      if (cached && cached.levelId === id) next = cached;
       else {
         cached?.destroy();
-        next = this.levelCache = new LevelScreen(this, id, daily);
+        next = this.levelCache = new LevelScreen(this, id, null);
       }
     } else next = new TitleScreen(this);
     const prev = this.screen;

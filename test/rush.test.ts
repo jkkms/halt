@@ -1,388 +1,346 @@
-// Rush mode (SPEC_rush): every card's verdict proved with the real judge or by simulation, the lookalike pairs,
-// "no card is a level", the scoring, the lives/streak/timeout state machine and the seeded order.
-import { after, before, describe, it } from 'node:test';
+// Rush mode rules (SPEC_rush2): the order of tiers, which card comes next, scoring in tenths of a second, the endless
+// run (lives, streak, timeout), the server's check of a submitted run, nicknames, the store and the words.
+// The card bank itself is checked in rushCards.test.ts.
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { lex, parseCond } from '../src/core/expr.ts';
-import { overall } from '../src/core/judge.ts';
-import { proveEnds } from '../src/core/game.ts';
-import { LEVELS, TUTORIAL_PROGRAMS, type Level } from '../src/core/levels.ts';
+import { checkNick, nickKey, normalizeNick } from '../src/core/nick.ts';
 import {
+  addSeen,
   answerCard,
   cardPoints,
-  CLEAR_BONUS,
-  dailyRushOrder,
+  checkRun,
+  clampMs,
+  currentCard,
   isLast,
+  MIN_ANSWER_MS,
   nextCard,
-  RUSH_LIVES,
-  RUSH_SECONDS,
+  pickCard,
   rightCount,
-  rushMarks,
-  rushOrder,
-  rushScene,
+  RUSH_LIVES,
+  RUSH_MS,
+  RUSH_SECONDS,
   rushShareText,
+  SEEN_KEPT,
   startRush,
   streakMultiplier,
+  submittedAnswers,
+  tenthsLeft,
+  TIER_AT,
+  TIER_PATTERN,
+  type CardMeta,
   type RushState,
+  type SubmittedAnswer,
 } from '../src/core/rush.ts';
-import { RUSH_CARDS, rushCardById, type RushCard } from '../src/core/rushCards.ts';
-import { initialState, sampleInputs, sampleStates, simulate, startAllowed, SIM_CAP } from '../src/core/sim.ts';
-import { plainText } from '../src/core/tutorial.ts';
+import { RUSH_CARDS, rushCardById, type RushVerdict } from '../src/core/rushCards.ts';
 import { tables } from '../src/ui/i18n.ts';
-import { load, recordRush, RUSH_DAYS_KEPT, save } from '../src/ui/store.ts';
-import { RUSH_ANSWERS } from './rushAnswers.ts';
-import { nodeJudge } from './z3-node.ts';
+import { load, recordRush, save } from '../src/ui/store.ts';
 
-let z: Awaited<ReturnType<typeof nodeJudge>>;
-before(async () => {
-  z = await nodeJudge();
+/** A seeded random integer in [0, n) for the tests. */
+function seeded(seed: number): (n: number) => number {
+  let a = seed >>> 0;
+  return (n) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n);
+  };
+}
+
+const other = (v: RushVerdict): RushVerdict => (v === 'ends' ? 'never' : 'ends');
+
+// ------------------------------------------------------------ the order of tiers
+
+describe('rush: the order of tiers', () => {
+  it('positions 1–20 as in the spec, then the block 2,3,2,3,1,3,2,3,3,2 again and again', () => {
+    const first = Array.from({ length: 20 }, (_, i) => TIER_AT(i + 1));
+    assert.deepEqual(first, [1, 1, 1, 2, 1, 1, 2, 3, 2, 1, 2, 2, 1, 3, 2, 2, 3, 1, 3, 2]);
+    for (let r = 0; r < 5; r++)
+      assert.deepEqual(
+        Array.from({ length: 10 }, (_, i) => TIER_AT(21 + 10 * r + i)),
+        [2, 3, 2, 3, 1, 3, 2, 3, 3, 2],
+      );
+    assert.equal(TIER_AT(1000), TIER_PATTERN.repeat[(1000 - 21) % 10]);
+  });
+
+  it('is data: changing TIER_PATTERN changes TIER_AT', () => {
+    const saved = TIER_PATTERN.head[0]!;
+    TIER_PATTERN.head[0] = 3;
+    try {
+      assert.equal(TIER_AT(1), 3);
+    } finally {
+      TIER_PATTERN.head[0] = saved;
+    }
+  });
 });
-after(async () => {
-  await z.close();
-});
 
-const inputsOf = (card: RushCard, start: Record<string, number>) => Object.fromEntries(card.inputs.map((v) => [v, BigInt(start[v] ?? 0)]));
+// ------------------------------------------------------------ which card
 
-// ------------------------------------------------------------ the deck
+describe('rush: which card comes next', () => {
+  const fake = (id: number, tier: 1 | 2 | 3, family: string, pair?: string): CardMeta => ({ id, tier, family, pair });
 
-describe('rush cards: the deck', () => {
-  it('about 36 cards with their own ids, about half ending and half never ending, every tier', () => {
-    assert.ok(RUSH_CARDS.length >= 30 && RUSH_CARDS.length <= 40, `${RUSH_CARDS.length} cards`);
-    const ids = RUSH_CARDS.map((c) => c.id);
-    assert.equal(new Set(ids).size, ids.length);
-    for (const id of ids) assert.ok(id > 200, 'ids never clash with a level or a tutorial program');
-    const ends = RUSH_CARDS.filter((c) => c.verdict === 'ends').length;
-    const never = RUSH_CARDS.filter((c) => c.verdict === 'never').length;
-    assert.equal(ends + never, RUSH_CARDS.length, 'no "nobody knows" card');
-    assert.ok(Math.abs(ends - never) <= 2, `${ends} end, ${never} never end`);
-    for (const tier of [1, 2, 3]) {
-      const cards = RUSH_CARDS.filter((c) => c.tier === tier);
-      assert.ok(cards.length >= 6, `tier ${tier}`);
-      assert.ok(cards.some((c) => c.verdict === 'ends') && cards.some((c) => c.verdict === 'never'), `tier ${tier} mixes both verdicts`);
+  it('a card of the position’s tier, unseen on this device first, uniformly', () => {
+    const counts = new Map<number, number>();
+    const rand = seeded(7);
+    const seen = RUSH_CARDS.filter((c) => c.tier === 1)
+      .slice(0, 100)
+      .map((c) => c.id);
+    for (let k = 0; k < 2000; k++) {
+      const id = pickCard({ position: 1, run: [], seen, rand });
+      assert.equal(rushCardById(id).tier, 1);
+      assert.ok(!seen.includes(id), 'unseen first');
+      counts.set(id, (counts.get(id) ?? 0) + 1);
     }
+    const unseen = RUSH_CARDS.filter((c) => c.tier === 1 && !seen.includes(c.id)).length;
+    assert.equal(counts.size, unseen, 'every unseen card can come');
+    for (const n of counts.values()) assert.ok(n > 2000 / unseen / 3 && n < (2000 / unseen) * 3, 'roughly uniform');
   });
 
-  it('short: at most 4 lines of loop body, at most 3 variables, mostly 1–2', () => {
-    for (const c of RUSH_CARDS) {
-      const lines = c.code.split('\n');
-      const w = lines.findIndex((l) => l.startsWith('while'));
-      assert.equal(w, 0, `card ${c.id}: no code before the loop`);
-      assert.ok(lines.length - 2 <= 4, `card ${c.id}: ${lines.length - 2} body lines`);
-      assert.ok(c.vars.length <= 3, `card ${c.id}`);
-    }
-    const small = RUSH_CARDS.filter((c) => c.vars.length <= 2).length;
-    assert.ok(small >= RUSH_CARDS.length * 0.9, `${small} of ${RUSH_CARDS.length} cards use 1–2 variables`);
+  it('when every card of the tier was seen: the one seen longest ago', () => {
+    const cards = [fake(1, 1, 'a'), fake(2, 1, 'b'), fake(3, 1, 'c'), fake(9, 2, 'z')];
+    assert.equal(pickCard({ position: 1, run: [], seen: [2, 3, 1], rand: seeded(1), cards }), 2);
+    assert.equal(pickCard({ position: 1, run: [], seen: [3, 1, 2], rand: seeded(1), cards }), 3);
+    assert.equal(pickCard({ position: 1, run: [], seen: [3, 2], rand: seeded(1), cards }), 1, 'an unseen one before any seen one');
   });
 
-  it('every card parses; its samples satisfy the start condition', () => {
-    for (const c of RUSH_CARDS) {
-      assert.equal(c.facts, 'true');
-      assert.ok(c.samples.length >= 2, `card ${c.id}`);
-      for (const inp of sampleInputs(c)) assert.ok(startAllowed(c, inp), `card ${c.id}: ${JSON.stringify(c.samples)}`);
-    }
+  it('never the family of either of the two cards before it, unless nothing else is left', () => {
+    const cards = [fake(1, 1, 'a'), fake(2, 1, 'a'), fake(3, 1, 'b'), fake(4, 1, 'c')];
+    for (let s = 0; s < 50; s++) assert.equal(pickCard({ position: 3, run: [1, 3], seen: [], rand: seeded(s), cards }), 4);
+    assert.equal(pickCard({ position: 3, run: [3, 4], seen: [], rand: seeded(3), cards: [fake(3, 1, 'b'), fake(4, 1, 'c'), fake(5, 1, 'b')] }), 5, 'gives way');
   });
 
-  it('a reason in Korean and English for every card: one short line, no letter V, no “ranking function”', () => {
-    for (const c of RUSH_CARDS) {
-      for (const L of ['ko', 'en'] as const) {
-        const raw = c.why[L];
-        const text = plainText(raw);
-        assert.ok(text.trim() && !text.includes('\n'), `card ${c.id} ${L}`);
-        assert.equal((raw.match(/`/g) ?? []).length % 2, 0, `card ${c.id} ${L}: backticks pair up`);
-        assert.ok(!/\bV\b/.test(text) && !/ranking function/i.test(text), `card ${c.id} ${L}: ${text}`);
-        assert.ok([...text].length <= (L === 'ko' ? 60 : 95), `card ${c.id} ${L} is short: ${[...text].length}`);
+  it('never both cards of a lookalike pair in one run, unless nothing else is left', () => {
+    const cards = [fake(1, 1, 'a', 'p'), fake(2, 1, 'b', 'p'), fake(3, 1, 'c'), fake(4, 1, 'd', 'q'), fake(5, 1, 'e')];
+    for (let s = 0; s < 50; s++) assert.notEqual(pickCard({ position: 5, run: [1, 9, 9, 9], seen: [], rand: seeded(s), cards }), 2);
+    assert.equal(pickCard({ position: 1, run: [1], seen: [], rand: seeded(1), cards: [fake(1, 1, 'a', 'p'), fake(2, 1, 'b', 'p')] }), 2, 'gives way');
+  });
+
+  it('no card twice in a run until its tier is used up', () => {
+    const cards = [fake(1, 1, 'a'), fake(2, 1, 'b')];
+    assert.equal(pickCard({ position: 1, run: [1], seen: [], rand: seeded(1), cards }), 2);
+    assert.ok([1, 2].includes(pickCard({ position: 1, run: [1, 2], seen: [], rand: seeded(1), cards })), 'used up: repeats');
+  });
+
+  it('a long run with the real bank: tiers by position, no repeats, no family twice within three, no pair twice', () => {
+    for (const seed of [1, 2, 3]) {
+      const rand = seeded(seed);
+      let seen: number[] = [];
+      const run: number[] = [];
+      for (let pos = 1; pos <= 200; pos++) {
+        const id = pickCard({ position: pos, run, seen, rand });
+        const c = rushCardById(id);
+        assert.equal(c.tier, TIER_AT(pos));
+        assert.ok(!run.includes(id), `card ${id} again at ${pos}`);
+        for (const prev of run.slice(-2)) assert.notEqual(rushCardById(prev).family, c.family, `family ${c.family} twice near ${pos}`);
+        if (c.pair) assert.ok(!run.some((p) => rushCardById(p).pair === c.pair), `pair ${c.pair} twice`);
+        run.push(id);
+        seen = addSeen(seen, id);
       }
-      assert.ok(/요/.test(c.why.ko), `card ${c.id}: polite ~요 ending`);
     }
+  });
+
+  it('many runs on one device: unseen cards first, so 20 runs of 15 cards ask 300 different cards', () => {
+    const rand = seeded(5);
+    let seen: number[] = [];
+    const all = new Set<number>();
+    for (let r = 0; r < 20; r++) {
+      const run: number[] = [];
+      for (let pos = 1; pos <= 15; pos++) {
+        const id = pickCard({ position: pos, run, seen, rand });
+        run.push(id);
+        seen = addSeen(seen, id);
+        all.add(id);
+      }
+    }
+    assert.equal(all.size, 300);
+  });
+
+  it('the seen list keeps the newest 600 ids, each once, newest last', () => {
+    let seen: number[] = [];
+    for (let i = 0; i < 700; i++) seen = addSeen(seen, 1000 + i);
+    assert.equal(seen.length, SEEN_KEPT);
+    assert.equal(seen[0], 1100);
+    seen = addSeen(seen, 1200);
+    assert.equal(seen.at(-1), 1200);
+    assert.equal(seen.filter((x) => x === 1200).length, 1);
   });
 });
 
-// ------------------------------------------------------------ not a level
+// ------------------------------------------------------------ scoring
 
-/** The program with its variables renamed v0, v1, … in order of first appearance. */
-function canonical(code: string): string {
-  const names = new Map<string, string>();
-  return lex(code)
-    .filter((tok) => tok.t !== 'end')
-    .map((tok) => {
-      if (tok.t !== 'id' || ['while', 'if', 'else', 'abs', 'min', 'max', 'true', 'false'].includes(tok.s)) return tok.s;
-      if (!names.has(tok.s)) names.set(tok.s, `v${names.size}`);
-      return names.get(tok.s)!;
-    })
-    .join(' ');
-}
-
-describe('rush cards are new', () => {
-  const others: [string, Level][] = [...LEVELS.map((l): [string, Level] => [`level ${l.id}`, l]), ...Object.entries(TUTORIAL_PROGRAMS).map(([k, l]): [string, Level] => [`tutorial ${k}`, l])];
-
-  it('canonical form renames variables (sanity)', () => {
-    assert.equal(canonical('while (n > 0) {\n  n := n - 1\n}'), canonical('while (x > 0) { x := x - 1 }'));
-    assert.notEqual(canonical('while (n > 0) { n := n - 1 }'), canonical('while (n > 0) { n := n - 2 }'));
-  });
-
-  it('no card is one of the 18 levels (or a tutorial program), not even renamed, whatever the start condition', () => {
-    for (const c of RUSH_CARDS) {
-      for (const [name, l] of others) assert.notEqual(canonical(c.code), canonical(l.code), `card ${c.id} is ${name}`);
-    }
-  });
-
-  it('no two cards are the same program with the same start', () => {
-    const seen = new Map<string, number>();
-    for (const c of RUSH_CARDS) {
-      const key = `${canonical(c.code)} | ${c.start}`;
-      assert.ok(!seen.has(key), `cards ${seen.get(key)} and ${c.id}`);
-      seen.set(key, c.id);
-    }
-  });
-});
-
-// ------------------------------------------------------------ verdicts
-
-for (const card of RUSH_CARDS) {
-  const ans = RUSH_ANSWERS[card.id];
-  describe(`rush card ${card.id} (tier ${card.tier}, ${card.verdict})`, () => {
-    it('has exactly one reference proof, for its verdict', () => {
-      assert.ok(ans, 'a reference answer');
-      assert.equal(!!ans!.ends, card.verdict === 'ends');
-      assert.equal(!!ans!.never, card.verdict === 'never');
-    });
-
-    if (card.verdict === 'ends') {
-      it(`ends: the steps left ${ans?.ends?.V}${ans?.ends?.R ? ` with the railing ${ans.ends.R}` : ''} pass the judge`, async () => {
-        const a = ans!.ends!;
-        const o = await proveEnds(z.judge, card, a.V, a.R ?? '');
-        assert.equal(o.type, 'ends');
-        if (o.type !== 'ends') return;
-        assert.deepEqual(
-          o.details.map((d) => [d.id, d.status]),
-          o.details.map((d) => [d.id, 'pass']),
-        );
-        assert.equal(o.result, 'proved');
-      });
-      it('ends: every sample run ends', () => {
-        for (const s0 of sampleStates(card)) assert.equal(simulate(card, s0, SIM_CAP).outcome, 'exit', JSON.stringify(s0, (_, x) => (typeof x === 'bigint' ? String(x) : x)));
-      });
-    } else {
-      it(`never: ${ans?.never?.expect === 'cycle' ? 'a start that repeats a state' : `a start and the bottomless zone ${ans?.never?.expect === 'zone' ? ans.never.Z : ''}`}`, async () => {
-        const w = ans!.never!;
-        const inputs = inputsOf(card, w.start);
-        assert.ok(startAllowed(card, inputs), 'the start is allowed');
-        const s0 = initialState(card, inputs);
-        if (w.expect === 'cycle') {
-          const run = simulate(card, s0, SIM_CAP);
-          assert.equal(run.outcome, 'cycle');
-          return;
-        }
-        assert.notEqual(simulate(card, s0, 300).outcome, 'exit', 'the run keeps going');
-        const Z = parseCond(w.Z, { vars: card.vars, locals: card.locals });
-        const checks = await z.judge.checkZone(card, s0, Z);
-        assert.deepEqual(
-          checks.map((c) => [c.id, c.status]),
-          [
-            ['zoneStart', 'pass'],
-            ['zoneGuard', 'pass'],
-            ['zoneStep', 'pass'],
-          ],
-        );
-        assert.equal(overall(checks), 'proved');
-      });
-      it('never: simple steps-left guesses are refuted (the judge agrees it does not always end)', async () => {
-        for (const v of card.vars) {
-          const o = await proveEnds(z.judge, card, v, '');
-          assert.equal(o.type, 'ends');
-          if (o.type === 'ends') assert.equal(o.result, 'refuted', `steps left = ${v}`);
-        }
-      });
-      it('never: the walker’s sample (the first one) never ends', () => {
-        const s0 = sampleStates(card)[0]!;
-        assert.notEqual(simulate(card, s0, 300).outcome, 'exit');
-      });
-    }
-
-    it('after the answer the stage runs the first sample: stairs to the exit, a ring or a shaft', () => {
-      const sc = rushScene(card);
-      if (card.verdict === 'ends') {
-        assert.equal(sc.k, 'stairs');
-        if (sc.k === 'stairs') {
-          assert.equal(sc.end, 'exit');
-          assert.ok(sc.stairs.length - 1 >= 1 && sc.stairs.length - 1 <= 12, `${sc.stairs.length - 1} steps`);
-        }
-      } else assert.ok(sc.k === 'ring' || sc.k === 'shaft', sc.k);
-      const states = sc.k === 'stairs' ? sc.stairs.map((s) => s.s) : sc.k === 'ring' ? [...sc.prefix, ...sc.cycle] : sc.k === 'shaft' ? sc.states : [];
-      for (const s of states) for (const v of card.vars) assert.ok(s[v]! < 10n ** 12n && s[v]! > -(10n ** 12n), `card ${card.id}: small numbers on the stage`);
-    });
-  });
-}
-
-// ------------------------------------------------------------ lookalike pairs
-
-/** Edit distance between two token lists. */
-function distance(a: string[], b: string[]): number {
-  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
-  for (let j = 1; j <= b.length; j++) d[0]![j] = j;
-  for (let i = 1; i <= a.length; i++)
-    for (let j = 1; j <= b.length; j++) d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
-  return d[a.length]![b.length]!;
-}
-
-const tokens = (c: RushCard) => [...lex(c.code), ...lex(c.start)].filter((t) => t.t !== 'end').map((t) => t.s);
-
-describe('rush lookalike pairs', () => {
-  const groups = new Map<string, RushCard[]>();
-  for (const c of RUSH_CARDS) if (c.pair) groups.set(c.pair, [...(groups.get(c.pair) ?? []), c]);
-
-  it('many pairs, each with both verdicts (each verdict proved above)', () => {
-    assert.ok(groups.size >= 12, `${groups.size} pairs`);
-    for (const [key, cards] of groups) {
-      assert.ok(cards.length >= 2, key);
-      assert.ok(cards.some((c) => c.verdict === 'ends') && cards.some((c) => c.verdict === 'never'), `${key}: different verdicts`);
-    }
-  });
-
-  it('the proof of the twin that ends is refuted on the twin that never ends', async () => {
-    for (const [key, cards] of groups) {
-      for (const a of cards.filter((c) => c.verdict === 'ends'))
-        for (const b of cards.filter((c) => c.verdict === 'never')) {
-          const ref = RUSH_ANSWERS[a.id]!.ends!;
-          const o = await proveEnds(z.judge, b, ref.V, ref.R ?? '');
-          assert.equal(o.type, 'ends');
-          if (o.type === 'ends') assert.equal(o.result, 'refuted', `${key}: ${ref.V} on card ${b.id}`);
-        }
-    }
-  });
-
-  it('the cards of a pair differ in one small thing (a few tokens of code or start)', () => {
-    for (const [key, cards] of groups) {
-      for (const a of cards)
-        for (const b of cards) {
-          if (a === b || a.verdict === b.verdict) continue;
-          const d = distance(tokens(a), tokens(b));
-          assert.ok(d >= 1 && d <= 6, `${key}: cards ${a.id} and ${b.id} differ by ${d} tokens`);
-        }
-    }
-  });
-});
-
-// ------------------------------------------------------------ scoring and the run
-
-describe('rush scoring', () => {
-  it('a right answer: 100 + 10 × whole seconds left, × the streak multiplier (×1 … ×2)', () => {
+describe('rush scoring: 5 seconds, tenths', () => {
+  it('right = round((100 + 100 × t / 5) × streak multiplier), t = seconds left floored to 0.1 s', () => {
+    assert.equal(RUSH_SECONDS, 5);
     assert.deepEqual([1, 2, 3, 4, 5, 6, 20].map(streakMultiplier), [1, 1.25, 1.5, 1.75, 2, 2, 2]);
-    assert.equal(cardPoints(15, 1), 250);
-    assert.equal(cardPoints(14.99, 1), 240, 'whole seconds');
-    assert.equal(cardPoints(0.4, 1), 100);
-    assert.equal(cardPoints(12, 2), Math.round(220 * 1.25));
-    assert.equal(cardPoints(15, 5), 500);
-    assert.equal(cardPoints(15, 9), 500);
-    assert.equal(cardPoints(3, 2), 163, '162.5 rounds to 163');
-    assert.equal(cardPoints(99, 1), 250, 'never more than 15 seconds');
+    assert.equal(tenthsLeft(1000), 40);
+    assert.equal(tenthsLeft(1001), 39, 'floored: 3.999 s left counts as 3.9');
+    assert.equal(tenthsLeft(5000), 0);
+    assert.equal(cardPoints(1000, 1), 180);
+    assert.equal(cardPoints(2550, 1), 148, '2.45 s left → 2.4');
+    assert.equal(cardPoints(5000, 1), 100);
+    assert.equal(cardPoints(MIN_ANSWER_MS, 1), 196, 'the fastest answer counted');
+    assert.equal(cardPoints(1000, 5), 360);
+    assert.equal(cardPoints(3300, 2), 168, '134 × 1.25 = 167.5 rounds to 168');
+  });
+
+  it('answer times are whole ms between 200 and 5000', () => {
+    assert.deepEqual([clampMs(12), clampMs(199.6), clampMs(1234.4), clampMs(9000)], [200, 200, 1234, 5000]);
   });
 });
 
-describe('rush run: lives, streak, timeout', () => {
-  const order = rushOrder('test');
-  const correct = (st: RushState) => rushCardById(st.order[st.index]!).verdict;
-  const wrong = (st: RushState) => (correct(st) === 'ends' ? 'never' : 'ends');
+// ------------------------------------------------------------ the run
 
-  it('three right answers build a streak; a timeout costs a life and resets it', () => {
-    let st = startRush(order);
+describe('rush run: endless, 3 lives', () => {
+  const first = RUSH_CARDS[0]!.id;
+  const correct = (st: RushState) => rushCardById(currentCard(st)).verdict;
+  const ids = RUSH_CARDS.map((c) => c.id);
+
+  it('right answers build a streak; a timeout costs a life and resets it; the run never ends by itself', () => {
+    let st = startRush(first);
     assert.deepEqual([st.phase, st.lives, st.score, st.streak], ['question', RUSH_LIVES, 0, 0]);
-    const pts: number[] = [];
-    for (let i = 0; i < 3; i++) {
-      st = answerCard(st, correct(st), 15 - i, correct(st));
-      assert.equal(st.phase, 'feedback');
-      pts.push(st.answers.at(-1)!.points);
+    let n = 0;
+    const pick = () => ids[++n % ids.length]!;
+    for (let i = 0; i < 60; i++) {
+      st = answerCard(st, correct(st), 1000, correct(st));
       assert.ok(!isLast(st));
-      st = nextCard(st);
-      assert.equal(st.index, i + 1);
+      st = nextCard(st, pick);
+      assert.equal(st.phase, 'question');
     }
-    assert.deepEqual(pts, [250, Math.round(240 * 1.25), Math.round(230 * 1.5)]);
-    assert.equal(st.streak, 3);
-    assert.equal(st.score, pts[0]! + pts[1]! + pts[2]!);
-    st = answerCard(st, null, 0, correct(st)); // the time ran out
-    assert.deepEqual([st.lives, st.streak, st.answers.at(-1)!.right, st.answers.at(-1)!.given], [RUSH_LIVES - 1, 0, false, null]);
-    assert.equal(st.bestStreak, 3);
-    assert.equal(rushMarks(st), '✔✔✔✘');
+    assert.equal(st.streak, 60);
+    assert.equal(st.score, 180 + 225 + 270 + 315 + 56 * 360);
+    st = answerCard(st, null, 1234, correct(st)); // the time ran out
+    const a = st.answers.at(-1)!;
+    assert.deepEqual([st.lives, st.streak, a.right, a.given, a.ms, a.points], [RUSH_LIVES - 1, 0, false, null, RUSH_MS, 0]);
+    assert.equal(st.bestStreak, 60);
   });
 
-  it('answers outside a question are ignored', () => {
-    let st = startRush(order);
-    st = answerCard(st, correct(st), 10, correct(st));
-    const again = answerCard(st, correct(st), 10, correct(st));
-    assert.equal(again, st);
-    assert.equal(nextCard(startRush(order)).index, 0);
-  });
-
-  it('lives 0 ends the run (no bonus)', () => {
-    let st = startRush(order);
+  it('the third wrong answer ends it; answers outside a question are ignored', () => {
+    let st = startRush(first);
+    const answered = answerCard(st, correct(st), 900, correct(st));
+    assert.equal(answerCard(answered, 'ends', 900, 'ends'), answered);
     for (let i = 0; i < RUSH_LIVES; i++) {
-      st = answerCard(st, wrong(st), 9, correct(st));
+      st = answerCard(st, other(correct(st)), 900, correct(st));
       assert.equal(isLast(st), i === RUSH_LIVES - 1);
-      st = nextCard(st);
+      st = nextCard(st, () => ids[i + 1]!);
     }
     assert.equal(st.phase, 'over');
-    assert.deepEqual([st.lives, st.score, st.cleared, rightCount(st)], [0, 0, false, 0]);
-  });
-
-  it('answering every card with a life left gives the +500 bonus', () => {
-    let st = startRush(order);
-    let sum = 0;
-    while (st.phase !== 'over') {
-      const miss = st.index === 5; // one miss on the way
-      st = answerCard(st, miss ? wrong(st) : correct(st), 7, correct(st));
-      sum += st.answers.at(-1)!.points;
-      st = nextCard(st);
-    }
-    assert.equal(st.answers.length, RUSH_CARDS.length);
-    assert.equal(st.cleared, true);
-    assert.equal(st.lives, RUSH_LIVES - 1);
-    assert.equal(st.score, sum + CLEAR_BONUS);
-    assert.equal(rightCount(st), RUSH_CARDS.length - 1);
-  });
-
-  it('the time limit is 15 seconds and there are 3 lives', () => {
-    assert.equal(RUSH_SECONDS, 15);
-    assert.equal(RUSH_LIVES, 3);
+    assert.deepEqual([st.lives, st.score, rightCount(st), st.answers.length, st.cards.length], [0, 0, 0, 3, 3]);
   });
 });
 
-describe('rush order', () => {
-  const tierOf = (id: number) => rushCardById(id).tier;
+// ------------------------------------------------------------ the server's check
 
-  it('every card once, tier 1 first, then 2, then 3', () => {
-    for (const seed of ['a', 'b', 'rush:2026-11-03']) {
-      const o = rushOrder(seed);
-      assert.deepEqual([...o].sort(), RUSH_CARDS.map((c) => c.id).sort());
-      const tiers = o.map(tierOf);
-      assert.deepEqual(tiers, [...tiers].sort());
+/** A run as the game plays it: picks by TIER_AT, then `plan` decides right / wrong / timeout per answer. */
+function playRun(plan: ('r' | 'w' | 't')[], ms = 1500, seed = 11): { st: RushState; answers: SubmittedAnswer[] } {
+  const rand = seeded(seed);
+  let st = startRush(pickCard({ position: 1, run: [], seen: [], rand }));
+  for (const step of plan) {
+    const v = rushCardById(currentCard(st)).verdict;
+    st = answerCard(st, step === 't' ? null : step === 'r' ? v : other(v), ms, v);
+    st = nextCard(st, () => pickCard({ position: st.cards.length + 1, run: st.cards, seen: [], rand }));
+    if (st.phase === 'over') break;
+  }
+  return { st, answers: submittedAnswers(st) };
+}
+
+const reasonOf = (x: ReturnType<typeof checkRun>) => (x.ok ? 'ok' : x.reason);
+
+describe('rush server check: the score is recomputed', () => {
+  const good = playRun(['r', 'r', 'r', 'w', 'r', 'r', 't', 'r', 'r', 'r', 'r', 'r', 'r', 'w']);
+
+  it('a good run passes with the same score the game showed', () => {
+    assert.equal(good.st.phase, 'over');
+    const r = checkRun(good.answers);
+    assert.ok(r.ok, JSON.stringify(r));
+    if (r.ok) {
+      assert.equal(r.score, good.st.score);
+      assert.equal(r.cards, rightCount(good.st));
+      assert.equal(r.bestStreak, good.st.bestStreak);
+      assert.equal(r.totalMs, good.answers.reduce((a, b) => a + b.ms, 0));
     }
   });
 
-  it("today's rush: the same date gives the same order, different dates different orders", () => {
-    assert.deepEqual(dailyRushOrder('2026-11-03'), dailyRushOrder('2026-11-03'));
-    assert.notDeepEqual(dailyRushOrder('2026-11-03'), dailyRushOrder('2026-11-04'));
-    const seen = new Set<string>();
-    for (let d = 0; d < 60; d++) {
-      const key = new Date(Date.UTC(2026, 10, 1) + d * 86400000).toISOString().slice(0, 10);
-      seen.add(dailyRushOrder(key).join(','));
-    }
-    assert.equal(seen.size, 60);
+  it('tampered times fail: too fast, too slow, a timeout sent as quick, a fraction of a ms', () => {
+    assert.deepEqual(
+      checkRun(good.answers.map((a, i) => (i === 2 ? { ...a, ms: 150 } : a))),
+      { ok: false, reason: 'bad-time', at: 3 },
+    );
+    assert.deepEqual(
+      checkRun(good.answers.map((a, i) => (i === 2 ? { ...a, ms: 5001 } : a))),
+      { ok: false, reason: 'bad-time', at: 3 },
+    );
+    assert.equal(reasonOf(checkRun(good.answers.map((a) => (a.given === null ? { ...a, ms: 1000 } : a)))), 'bad-time');
+    assert.equal(reasonOf(checkRun(good.answers.map((a, i) => (i === 0 ? { ...a, ms: 1.5 } : a)))), 'bad-answer');
   });
 
-  it('the order is shuffled (not the deck order)', () => {
-    assert.notDeepEqual(dailyRushOrder('2026-11-03'), RUSH_CARDS.map((c) => c.id));
+  it('faster times only earn what the game’s own rule gives', () => {
+    const faster = good.answers.map((a) => (a.given === null ? a : { ...a, ms: 200 }));
+    const r = checkRun(faster);
+    assert.ok(r.ok && r.score > good.st.score);
+  });
+
+  it('wrong order of tiers, unknown cards, repeats, extra answers after the third wrong, and unfinished runs fail', () => {
+    const swapped = [...good.answers];
+    const i = swapped.findIndex((a, k) => k > 0 && rushCardById(a.id).tier !== rushCardById(swapped[0]!.id).tier);
+    [swapped[0], swapped[i]] = [swapped[i]!, swapped[0]!];
+    assert.equal(reasonOf(checkRun(swapped)), 'wrong-tier');
+    assert.equal(reasonOf(checkRun([{ ...good.answers[0]!, id: 999999 }, ...good.answers.slice(1)])), 'unknown-card');
+    const repeated = [...good.answers];
+    repeated[1] = { ...repeated[0]! };
+    assert.equal(reasonOf(checkRun(repeated)), 'repeated-card');
+    const extra = [...good.answers, { id: good.answers[1]!.id, given: 'ends' as const, ms: 900 }];
+    assert.deepEqual(checkRun(extra), { ok: false, reason: 'after-end', at: good.answers.length + 1 });
+    assert.deepEqual(checkRun(good.answers.slice(0, -1)), { ok: false, reason: 'not-over' });
+    assert.deepEqual(checkRun([]), { ok: false, reason: 'empty' });
+    assert.deepEqual(checkRun('nope'), { ok: false, reason: 'not-a-list' });
+    assert.equal(reasonOf(checkRun([{ id: good.answers[0]!.id, given: 'maybe', ms: 900 }])), 'bad-answer');
+  });
+
+  it('a short run of three wrong answers is a valid run worth 0', () => {
+    const r = checkRun(playRun(['w', 't', 'w']).answers);
+    assert.deepEqual(r.ok && [r.score, r.cards, r.answered], [0, 0, 3]);
   });
 });
+
+// ------------------------------------------------------------ share line
 
 describe('rush share line', () => {
   it('matches the spec and never names a card or a verdict', () => {
-    assert.equal(rushShareText('ko', '2026-11-03', 1450, '✔✔✘✔✔✔✘✘'), 'Halt? 러시 2026-11-03 · 1,450점 · ✔✔✘✔✔✔✘✘');
-    assert.equal(rushShareText('en', '2026-11-03', 1450, '✔✘'), 'Halt? Rush 2026-11-03 · 1,450 pts · ✔✘');
-    assert.equal(rushShareText('ko', '2026-11-03', 90, ''), 'Halt? 러시 2026-11-03 · 90점 · ');
+    assert.equal(rushShareText('ko', 2350, 18, 9), 'Halt? 러시 · 2,350점 · 18장 · 최고 연속 9');
+    assert.equal(rushShareText('en', 2350, 18, 9), 'Halt? Rush · 2,350 pts · 18 cards · best streak 9');
+    assert.equal(rushShareText('en', 100, 1, 1), 'Halt? Rush · 100 pts · 1 card · best streak 1');
   });
 });
 
-describe('rush best scores in the store', () => {
-  it('keeps the best of each day and of practice, under the same key, and survives junk', () => {
+// ------------------------------------------------------------ nicknames
+
+describe('rush nicknames', () => {
+  it('2–12 characters of Hangul, Latin letters, digits, space, _ and -; trimmed and NFC', () => {
+    for (const ok of ['민성', 'Minsung', 'a_b-c 1', '할트러너99', 'ㅋㅋ', '  Neo  ']) assert.ok(checkNick(ok).ok, ok);
+    assert.equal(normalizeNick('  Neo   Two '), 'Neo Two');
+    assert.equal(normalizeNick('가'), '가', 'NFC');
+    assert.deepEqual(checkNick('x'), { ok: false, problem: 'length' });
+    assert.deepEqual(checkNick('abcdefghijklm'), { ok: false, problem: 'length' });
+    assert.deepEqual(checkNick('   '), { ok: false, problem: 'length' });
+    for (const bad of ['a.b', 'hi!', '<b>x', 'na/me', '😀😀', 'ab\tcd!']) assert.deepEqual(checkNick(bad), { ok: false, problem: 'chars' }, bad);
+    assert.deepEqual(checkNick(42), { ok: false, problem: 'chars' });
+  });
+
+  it('a short block list in Korean and English, also with spaces, _ or - in between', () => {
+    for (const bad of ['fuck', 'Sh it', 'f_u_c_k', '씨발', '시 발', '병신아', 'ㅅㅂ', 'xxNiggaxx']) assert.deepEqual(checkNick(bad), { ok: false, problem: 'blocked' }, bad);
+    for (const ok of ['classic', 'Hancock', '김민성']) assert.ok(checkNick(ok).ok, ok);
+  });
+
+  it('the same nickname whatever the case of Latin letters', () => {
+    assert.equal(nickKey(' MinSung '), 'minsung');
+    assert.equal(nickKey('민성'), '민성');
+  });
+});
+
+// ------------------------------------------------------------ the store
+
+describe('rush in the store', () => {
+  it('keeps the best ranked and practice scores, the seen cards, the nickname and token under the same key', () => {
     const mem = new Map<string, string>();
     const fake = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
     const g = globalThis as { localStorage?: unknown };
@@ -390,38 +348,60 @@ describe('rush best scores in the store', () => {
     g.localStorage = fake;
     try {
       const saved = load();
-      assert.deepEqual(saved.rush, { daily: {}, practiceBest: 0 });
-      assert.equal(recordRush(saved.rush, '2026-11-03', 900), true);
-      assert.equal(recordRush(saved.rush, '2026-11-03', 700), false);
-      assert.equal(recordRush(saved.rush, '2026-11-03', 1450), true);
-      assert.equal(recordRush(saved.rush, null, 300), true);
-      assert.equal(recordRush(saved.rush, null, 200), false);
+      assert.deepEqual({ ...saved.rush }, { best: 0, practiceBest: 0, seen: [] });
+      assert.equal(recordRush(saved.rush, 'rush', 900), true);
+      assert.equal(recordRush(saved.rush, 'rush', 700), false);
+      assert.equal(recordRush(saved.rush, 'practice', 300), true);
+      saved.rush.seen = [1001, 1002];
+      saved.rush.nick = '민성';
+      saved.rush.token = '0f8fad5b-d9cb-469f-a165-70867728950e';
       save(saved);
       assert.deepEqual([...mem.keys()], ['it-ends:v1']);
-      assert.deepEqual(load().rush, { daily: { '2026-11-03': 1450 }, practiceBest: 300 });
-      // only the newest days are kept
-      for (let d = 1; d <= RUSH_DAYS_KEPT + 5; d++) recordRush(saved.rush, `2027-01-${String(d).padStart(2, '0')}`, d);
-      assert.equal(Object.keys(saved.rush.daily).length, RUSH_DAYS_KEPT);
-      assert.ok(!('2026-11-03' in saved.rush.daily));
-      // junk in storage
-      mem.set('it-ends:v1', JSON.stringify({ rush: { daily: { nope: 5, '2026-11-04': 'x', '2026-11-05': 40 }, practiceBest: -3 } }));
-      assert.deepEqual(load().rush, { daily: { '2026-11-05': 40 }, practiceBest: 0 });
+      assert.deepEqual(load().rush, { best: 900, practiceBest: 300, seen: [1001, 1002], nick: '민성', token: '0f8fad5b-d9cb-469f-a165-70867728950e' });
+      // an old save (the 15-second rush kept per-day scores; the daily puzzle kept its own records) still loads
+      mem.set('it-ends:v1', JSON.stringify({ best: { 1: 3 }, daily: { '2026-11-01': { level: 3, marks: ['✅'], solved: true, length: 2 } }, rush: { daily: { '2026-11-03': 1450 }, practiceBest: 250 } }));
+      const old = load();
+      assert.deepEqual(old.rush, { best: 0, practiceBest: 250, seen: [] });
+      assert.deepEqual(old.best, { 1: 3 });
+      // junk
+      mem.set('it-ends:v1', JSON.stringify({ rush: { best: -3, practiceBest: 'x', seen: [1, 'a', 1, 2.5, 3], nick: 'a!', token: 'not a token' } }));
+      assert.deepEqual(load().rush, { best: 0, practiceBest: 0, seen: [1, 3] });
       mem.set('it-ends:v1', '{broken');
-      assert.deepEqual(load().rush, { daily: {}, practiceBest: 0 });
+      assert.deepEqual(load().rush, { best: 0, practiceBest: 0, seen: [] });
     } finally {
       g.localStorage = before;
     }
   });
 });
 
+// ------------------------------------------------------------ words
+
 describe('rush words', () => {
-  it('uses the spec’s words for the menu, the start panel and the end', () => {
+  it('menu, modes and the end use the spec’s words', () => {
     const { en, ko } = tables();
-    assert.deepEqual([ko.menuRush, ko.menuRushSub, en.menuRush, en.menuRushSub], ['러시', '15초 안에 판정 · 목숨 3개', 'Rush', 'Judge in 15 s · 3 lives']);
-    assert.deepEqual([ko.rushToday, ko.rushPractice, ko.rushAgain, ko.backTitle], ['오늘의 러시', '연습', '다시', '처음 화면']);
-    assert.deepEqual([en.rushToday, en.rushPractice, en.rushAgain], ['Today’s rush', 'Practice', 'Again']);
+    assert.deepEqual([ko.menuRush, ko.menuRushSub, en.menuRush, en.menuRushSub], ['러시 모드', '5초 안에 판정 · 목숨 3개', 'Rush mode', 'Judge in 5 s · 3 lives']);
+    assert.deepEqual([ko.menuTutorial, ko.menuLevels, en.menuTutorial, en.menuLevels], ['튜토리얼', '증명 모드', 'Tutorial', 'Proof mode']);
+    assert.deepEqual([ko.selectTitle, ko.backLevels, en.selectTitle, en.backLevels], ['증명 모드', '증명 모드', 'Proof mode', 'Proof mode']);
+    assert.deepEqual([ko.rushPlay, ko.rushPractice, ko.rushAgain, ko.backTitle], ['러시 시작', '연습', '다시', '처음 화면']);
+    assert.deepEqual([en.rushPlay, en.rushPractice, en.rushAgain], ['Start rush', 'Practice', 'Again']);
     assert.deepEqual([ko.verdictEnds, ko.verdictNever, en.verdictEnds, en.verdictNever], ['끝난다', '안 끝난다', 'It ends', 'It never ends']);
-    assert.equal(ko.rushTitle, '끝날까? 러시');
-    for (const k of ['rushRule1', 'rushRule2', 'rushRule3'] as const) assert.ok(ko[k].endsWith('요.') && en[k].endsWith('.'), k);
+    assert.deepEqual([ko.rushNextHint, en.rushNextHint], ['↓ 다음', '↓ next']);
+    assert.deepEqual([ko.rushInput, en.rushInput, ko.rushAnyInt, en.rushAnyInt], ['입력', 'Input', '아무 정수', 'any integer']);
+    assert.equal(ko.rushOffline, '순위표에 연결하지 못했어요');
+    assert.ok(!('menuDaily' in ko) && !('menuDaily' in en), 'the daily puzzle is gone');
+  });
+
+  it('the explanation has its six parts in both languages, polite Korean, no exclamation marks', () => {
+    const { en, ko } = tables();
+    for (const k of ['rushAboutWhat', 'rushAboutRule', 'rushAboutTiers', 'rushAboutScore', 'rushAboutFame'] as const) {
+      assert.ok(ko[k].length > 20 && en[k].length > 20, k);
+      assert.ok(/요\.$/.test(ko[k]), `${k} ends politely`);
+    }
+    for (const k of ['rushAboutWhat', 'rushAboutRule', 'rushAboutTiers', 'rushAboutScore', 'rushAboutFame', 'rushStep1', 'rushStep2', 'rushStep3', 'rushStep4', 'rushStep5'] as const) {
+      assert.ok(/요/.test(ko[k]) && en[k].length > 10, k);
+      assert.ok(!/!/.test(ko[k] + en[k]), `${k}: no exclamation marks`);
+    }
+    assert.equal(ko.rushAboutWhatH, '러시는?');
+    assert.equal(ko.rushTutorialLink, "처음이라면 튜토리얼의 '1단계 · 판정'부터");
   });
 });
