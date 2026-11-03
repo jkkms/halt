@@ -11,7 +11,9 @@ import { HAND_DEFS, RUSH_CARDS, type RushCard } from '../src/core/rushCards.ts';
 import { initialState, sampleInputs, sampleStates, simulate, startAllowed, SIM_CAP } from '../src/core/sim.ts';
 import { plainText } from '../src/core/tutorial.ts';
 import { RUSH_ANSWERS } from './rushAnswers.ts';
-import { canonical, canonicalLoop, endsTruncated, forbiddenPrograms, gridAllEnd, gridStarts } from './rushCanon.ts';
+import { RETIRED_IDS } from './rushBankAnswers.ts';
+import { canonical, canonicalLoop, endsTruncated, forbiddenPrograms, gridAllEnd, gridStarts, loopShape } from './rushCanon.ts';
+import { lintCard, lintText } from './rushLint.ts';
 import { nodeJudge } from './z3-node.ts';
 
 let z: Awaited<ReturnType<typeof nodeJudge>>;
@@ -30,16 +32,19 @@ const numbers = (c: RushCard) => [...lex(c.code), ...lex(c.start)].filter((t) =>
 // ------------------------------------------------------------ the bank as a whole
 
 describe('rush bank: size, tiers, families', () => {
-  it('500 cards (at least 100): the 36 by hand (201–236) and the generated ones from 1001, ids unique', () => {
+  it('500 cards (at least 100): the 32 by hand (202–238) and the generated ones from 1001, ids unique, none retired', () => {
     assert.ok(RUSH_CARDS.length >= 100, `${RUSH_CARDS.length} cards`);
     assert.equal(RUSH_CARDS.length, 500);
     assert.deepEqual(
-      HAND_DEFS.map((d) => d.id),
-      Array.from({ length: 36 }, (_, i) => 201 + i),
+      HAND_DEFS.map((d) => d.id).sort((a, b) => a - b),
+      [202, 203, 204, 205, 206, 207, 208, 209, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 231, 232, 233, 234, 235, 236, 237, 238],
     );
     const ids = RUSH_CARDS.map((c) => c.id);
     assert.equal(new Set(ids).size, ids.length);
     for (const c of generated) assert.ok(c.id >= 1001);
+    // a card that left the bank keeps its id to itself: a new card never gets it
+    for (const id of [201, 210, 211, 212, 229, 230]) assert.ok(RETIRED_IDS.includes(id), `${id} is retired`);
+    for (const c of RUSH_CARDS) assert.ok(!RETIRED_IDS.includes(c.id), `card ${c.id} has a retired id`);
   });
 
   it('about half end and half never end, in every tier', () => {
@@ -61,12 +66,12 @@ describe('rush bank: size, tiers, families', () => {
     for (const t of [1, 2, 3]) assert.ok(RUSH_CARDS.filter((c) => c.tier === t).length >= need[t - 1]!, `tier ${t}: ${need[t - 1]} needed`);
   });
 
-  it('every family has both forms, at most 30 cards, and every tier draws on at least 5 families', () => {
+  it('every family (one template of the generator) has both forms, at most 25 cards, and every tier draws on at least 5 families', () => {
     const fam = new Map<string, RushCard[]>();
     for (const c of RUSH_CARDS) fam.set(c.family, [...(fam.get(c.family) ?? []), c]);
-    assert.ok(fam.size >= 20, `${fam.size} families`);
+    assert.ok(fam.size >= 30, `${fam.size} families`);
     for (const [name, cards] of fam) {
-      assert.ok(cards.length <= 30, `${name}: ${cards.length}`);
+      assert.ok(cards.length <= 25, `${name}: ${cards.length}`);
       assert.ok(cards.some((c) => c.verdict === 'ends') && cards.some((c) => c.verdict === 'never'), `${name} has both forms`);
     }
     for (const t of [1, 2, 3]) assert.ok(new Set(RUSH_CARDS.filter((c) => c.tier === t).map((c) => c.family)).size >= 5, `tier ${t}`);
@@ -116,6 +121,13 @@ describe('rush bank: readable in 5 seconds', () => {
     }
   });
 
+  it('no clumsy code on any card, hand-written ones included: no constants that fold, no x * 1, no !(x > 3), …', () => {
+    for (const c of RUSH_CARDS) {
+      const ps = lintCard(c.code, c.start);
+      assert.equal(ps.length, 0, `card ${c.id}: ${lintText(ps)}`);
+    }
+  });
+
   it('every card parses; its samples (at least two) satisfy the input condition', () => {
     for (const c of RUSH_CARDS) {
       assert.equal(c.facts, 'true');
@@ -142,6 +154,11 @@ describe('rush bank: every card is new', () => {
 
   it('no generated card has the loop of a level or a tutorial program (whatever the input)', () => {
     for (const c of generated) for (const [name, code] of others) assert.notEqual(canonicalLoop(c.code), canonicalLoop(code), `card ${c.id} has the loop of ${name}`);
+  });
+
+  it('no card at all has the loop of a level or a tutorial program, not even with other names and constants', () => {
+    const shapes = others.map(([name, code]) => [name, loopShape(code)] as const);
+    for (const c of RUSH_CARDS) for (const [name, shape] of shapes) assert.notEqual(loopShape(c.code), shape, `card ${c.id} has the loop of ${name}: ${c.code}`);
   });
 
   it('no two cards are the same code with the same input after renaming', () => {

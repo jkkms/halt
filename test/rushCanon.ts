@@ -1,9 +1,9 @@
 // Helpers shared by the rush tests and the card generator (scripts/gen-rush-cards.ts): the canonical form of a
 // program, the programs no card may copy, a second division semantics, and the grid of small starts.
 
-import { lex, type Expr } from '../src/core/expr.ts';
+import { lex, varsOf, type Expr } from '../src/core/expr.ts';
 import { LEVELS, TUTORIAL_PROGRAMS, compileLevel, type Level } from '../src/core/levels.ts';
-import type { Stmt } from '../src/core/program.ts';
+import { parseProgram, type Stmt } from '../src/core/program.ts';
 import { startAllowed, initialState, simulate, SIM_CAP, type State } from '../src/core/sim.ts';
 
 const KEYWORDS = ['while', 'if', 'else', 'abs', 'min', 'max', 'true', 'false'];
@@ -38,6 +38,145 @@ export function forbiddenPrograms(): [string, string][] {
     ...Object.entries(TUTORIAL_PROGRAMS).map(([k, l]): [string, string] => [`tutorial ${k}`, l.code]),
     ['tutorial grow', GROW_CODE],
   ];
+}
+
+// ------------------------------------------------------------ the shape of a loop
+
+/**
+ * The shape of a program's loop (from `while` on): its tree with the variables renamed and every integer constant
+ * replaced by `C`, so that loops differing only in names and constants get the same shape. Trivially equivalent
+ * ways of writing a condition get the same shape too: `0 < n` is `n > 0`, `n >= 1` is `n > C` (a constant moved
+ * by one), `!(x > 3)` is `x <= 3`, `a < b` is `b > a`, and `i <= n` counts as `i < n` (one off); `+`, `*`, `==`, `!=`, `&&`, `||`, `min` and `max` ignore the
+ * order of their operands; `if (c) A else B` is `if (!c) B else A`. The renaming that gives the smallest text wins,
+ * so the order in which the variables first appear does not matter either.
+ */
+export function loopShape(code: string): string {
+  const prog = parseProgram(code.slice(code.indexOf('while')));
+  const names = new Set<string>(varsOf(prog.guard));
+  const collect = (ss: Stmt[]) => {
+    for (const st of ss) {
+      if (st.k === 'assign') {
+        names.add(st.v);
+        varsOf(st.e, names);
+      } else {
+        varsOf(st.c, names);
+        collect(st.then);
+        collect(st.els);
+      }
+    }
+  };
+  collect(prog.body);
+  const vs = [...names];
+  let best: string | null = null;
+  for (const perm of permutations(vs.map((_, i) => i))) {
+    const ren = new Map(vs.map((v, i) => [v, `v${perm[i]}`]));
+    const s = `while (${shapeCond(prog.guard, ren, false)}) { ${shapeStmts(prog.body, ren)} }`;
+    if (best === null || s < best) best = s;
+  }
+  return best!;
+}
+
+function permutations(xs: number[]): number[][] {
+  if (xs.length <= 1) return [xs];
+  return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
+}
+
+const isConst = (e: Expr): boolean => varsOf(e).size === 0;
+
+function shapeInt(e: Expr, ren: Map<string, string>): string {
+  if (isConst(e)) return 'C';
+  switch (e.k) {
+    case 'var':
+      return ren.get(e.name)!;
+    case 'neg':
+      return `-(${shapeInt(e.e, ren)})`;
+    case 'bin': {
+      const l = shapeInt(e.l, ren);
+      const r = shapeInt(e.r, ren);
+      if (e.op === '+' || e.op === '*') return `(${[l, r].sort().join(` ${e.op} `)})`;
+      return `(${l} ${e.op} ${r})`;
+    }
+    case 'call': {
+      const args = e.args.map((a) => shapeInt(a, ren));
+      return `${e.fn}(${(e.fn === 'abs' ? args : args.sort()).join(', ')})`;
+    }
+    default:
+      throw new Error(`not an integer expression: ${e.k}`);
+  }
+}
+
+const NEG_OP: Record<string, string> = { '==': '!=', '!=': '==', '<': '>=', '<=': '>', '>': '<=', '>=': '<' };
+const FLIP_OP: Record<string, string> = { '==': '==', '!=': '!=', '<': '>', '<=': '>=', '>': '<', '>=': '<=' };
+
+/** A condition's shape; `neg` = the shape of its negation. */
+function shapeCond(e: Expr, ren: Map<string, string>, neg: boolean): string {
+  switch (e.k) {
+    case 'bool':
+      return String(e.v !== neg);
+    case 'not':
+      return shapeCond(e.e, ren, !neg);
+    case 'and':
+    case 'or': {
+      // De Morgan under a negation
+      const k = (e.k === 'and') !== neg ? '&&' : '||';
+      return `(${[shapeCond(e.l, ren, neg), shapeCond(e.r, ren, neg)].sort().join(` ${k} `)})`;
+    }
+    case 'cmp': {
+      let op = neg ? NEG_OP[e.op]! : e.op;
+      let l = shapeInt(e.l, ren);
+      let r = shapeInt(e.r, ren);
+      if (l === 'C' && r !== 'C') {
+        [l, r] = [r, l];
+        op = FLIP_OP[op]!;
+      }
+      // x >= C is x > C - 1, another constant; between two variables, a <= b (a < b + 1) is taken as the same loop
+      // as a < b too, an off-by-one away
+      if (op === '>=') op = '>';
+      if (op === '<=') op = '<';
+      if (r !== 'C') {
+        if (op === '<') {
+          [l, r] = [r, l];
+          op = '>';
+        }
+        if (op === '==' || op === '!=') [l, r] = [l, r].sort() as [string, string];
+      }
+      return `${l} ${op} ${r}`;
+    }
+    default:
+      throw new Error(`not a condition: ${e.k}`);
+  }
+}
+
+/** Statements; neighbouring assignments that do not touch each other's variable may come in either order. */
+function shapeStmts(ss: Stmt[], ren: Map<string, string>): string {
+  const out: string[] = [];
+  let run: Extract<Stmt, { k: 'assign' }>[] = [];
+  const flush = () => {
+    // the smallest order that keeps every dependent pair in place
+    const left = run.map((st) => ({ st, text: `${ren.get(st.v)} := ${shapeInt(st.e, ren)};`, reads: varsOf(st.e) }));
+    const touches = (a: (typeof left)[number], b: (typeof left)[number]) => a.st.v === b.st.v || a.reads.has(b.st.v) || b.reads.has(a.st.v);
+    while (left.length) {
+      const free = left.filter((x, i) => left.slice(0, i).every((y) => !touches(x, y)));
+      const pick = free.reduce((a, b) => (b.text < a.text ? b : a));
+      out.push(pick.text);
+      left.splice(left.indexOf(pick), 1);
+    }
+    run = [];
+  };
+  for (const st of ss) {
+    if (st.k === 'assign') {
+      run.push(st);
+      continue;
+    }
+    flush();
+    const t = shapeStmts(st.then, ren);
+    const f = shapeStmts(st.els, ren);
+    const a = `if (${shapeCond(st.c, ren, false)}) { ${t} } else { ${f} }`;
+    const b = `if (${shapeCond(st.c, ren, true)}) { ${f} } else { ${t} }`;
+    out.push(a < b ? a : b);
+  }
+  flush();
+  return out.join(' ');
 }
 
 // ------------------------------------------------------------ a second division semantics
