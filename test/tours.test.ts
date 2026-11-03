@@ -9,7 +9,7 @@ import { dueTours, helpMenu, replayTours, screenState, TOUR_IDS, tourFits, tourF
 import { plainText, richParts } from '../src/core/tutorial.ts';
 import { tables } from '../src/ui/i18n.ts';
 import { load } from '../src/ui/store.ts';
-import { clip, deskSpots, deskWidth, phoneSheet, pickSpot, revealDelta, sceneInset, stageFree, TOUR, union } from '../src/ui/tourLayout.ts';
+import { clip, deskBox, deskTextWidth, phoneSheet, revealDelta, sceneInset, stageFree, TOUR, union } from '../src/ui/tourLayout.ts';
 import { overlap, within, type Box } from '../src/ui/tutLayout.ts';
 import { nodeJudge } from './z3-node.ts';
 
@@ -259,51 +259,43 @@ describe('where the box goes', () => {
     { w: 401, h: 700 }, // 901 px wide: the narrowest wide layout
   ];
 
-  it('wide: half the stage, 300–460 px, never wider than the stage', () => {
-    assert.equal(deskWidth(940), 460);
-    assert.equal(deskWidth(780), 390);
-    assert.equal(deskWidth(600), 300);
-    assert.equal(deskWidth(3000), 460);
-    assert.equal(deskWidth(401), 300);
-    assert.equal(deskWidth(320), 296, "never wider than the stage less its margins");
-  });
-
-  it('wide: the lower left of the stage, inside it, unless that covers a target on the stage', () => {
+  it('wide (SPEC_v0.7): a band along the bottom of the stage, its full width less the margins; the text at most a comfortable width', () => {
     for (const st of stages) {
-      const size = { w: deskWidth(st.w), h: 200 };
-      const spots = deskSpots(st, size);
-      for (const s of spots) assert.ok(within({ x: 0, y: 0, ...st }, s), JSON.stringify(s));
-      const lowLeft = pickSpot(spots, []);
-      assert.deepEqual(lowLeft, { x: TOUR.margin, y: st.h - TOUR.margin - 200, ...size });
-      // the sample-run buttons at the top right never push it away on these stages
-      const pills: Box = { x: st.w - 12 - 345, y: 12, w: 345, h: 30 };
-      assert.deepEqual(pickSpot(spots, [pills]), lowLeft);
+      const band = deskBox(st, 220);
+      assert.deepEqual(band, { x: TOUR.margin, y: st.h - TOUR.margin - 220, w: st.w - 2 * TOUR.margin, h: 220 });
+      assert.ok(within({ x: 0, y: 0, ...st }, band));
+      const text = deskTextWidth(band.w);
+      assert.ok(text <= 800 && text <= band.w - 2 * TOUR.padX, `${st.w}: text ${text}`);
     }
-    // something at the lower left: the next spot that is free
-    const st = { w: 940, h: 844 };
-    const spots = deskSpots(st, { w: 460, h: 200 });
-    const thing: Box = { x: 40, y: 760, w: 60, h: 40 };
-    const got = pickSpot(spots, [thing]);
-    assert.deepEqual(got, spots[1]);
-    assert.equal(overlap(got, thing), 0);
+    assert.equal(deskTextWidth(908), 800);
+    assert.equal(deskTextWidth(748), 712);
   });
 
-  it('wide: the scene is framed clear of the box, and the stage rings keep off it', () => {
+  it('wide: the top edge is that of the tallest step; a shorter step keeps it (only the height changes)', () => {
+    const st = stages[0]!;
+    const tallest = deskBox(st, 240);
+    // what the view does for a step: the same top, left and width, its own height
+    for (const h of [90, 160, 240]) {
+      const step = { ...tallest, h };
+      assert.equal(step.y, tallest.y);
+      assert.ok(step.y + step.h <= st.h - TOUR.margin + 0.01);
+    }
+  });
+
+  it('wide: the scene is framed above the tallest band, and the stage rings keep off it', () => {
     for (const st of stages) {
-      const box = pickSpot(deskSpots(st, { w: deskWidth(st.w), h: 220 }), []);
+      const box = deskBox(st, 220);
       const i = sceneInset(st, box);
       const scene: Box = { x: i.left, y: i.top, w: st.w - i.left - i.right, h: st.h - i.top - i.bottom };
       assert.equal(overlap(scene, box), 0);
+      assert.equal(i.left, i.right, 'the scene stays centred');
       assert.ok(scene.h > st.h * 0.4, 'the scene keeps most of the stage');
       const free = stageFree({ x: 0, y: 0, ...st }, box);
       assert.equal(overlap(free, box), 0);
     }
-    // an upper box frames the scene under it
-    const up = deskSpots({ w: 940, h: 844 }, { w: 460, h: 200 })[2]!;
-    assert.ok(sceneInset({ w: 940, h: 844 }, up).top >= up.y + up.h);
   });
 
-  it('phones: a sheet at the bottom of the viewport, inside it', () => {
+  it('phones: a sheet near the bottom of the viewport at its tallest, inside it; its top stays', () => {
     for (const view of [{ w: 390, h: 844 }, { w: 360, h: 640 }, { w: 820, h: 1180 }]) {
       const sheet = phoneSheet(view, 230);
       assert.ok(within({ x: 0, y: 0, ...view }, sheet));

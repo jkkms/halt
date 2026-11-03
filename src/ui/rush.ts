@@ -34,6 +34,7 @@ import { logoMark, type App, type Screen } from './app.ts';
 import { sfx } from './audio.ts';
 import { codeView, follow, type CodeView } from './code.ts';
 import { h } from './dom.ts';
+import { narrationNodes } from './guide.ts';
 import { pretty, state as fmtState } from './format.ts';
 import { lang, t, type Key } from './i18n.ts';
 import { copyText } from './level.ts';
@@ -51,7 +52,10 @@ const FAME_ALL = 50;
 const verdictLabel = (v: RushVerdict) => t(v === 'ends' ? 'verdictEnds' : 'verdictNever');
 
 function rich(text: string): (Node | string)[] {
-  return richParts(text).map((p) => (p.kind === 'code' ? h('code', {}, p.s) : p.kind === 'bold' ? h('strong', {}, p.s) : p.s));
+  // SPEC_v0.7 §B: a `\n` starts a new line (the markup works on every line)
+  const lines = text.split('\n');
+  const inline = (line: string) => richParts(line).map((p) => (p.kind === 'code' ? h('code', {}, p.s) : p.kind === 'bold' ? h('strong', {}, p.s) : p.s));
+  return lines.length > 1 ? lines.map((line) => h('span', { class: 'nl' }, ...inline(line))) : inline(text);
 }
 
 /** The tutorial page of the verdict ("Step 1 · Verdict"), found by its content so it survives tutorial edits. */
@@ -235,12 +239,13 @@ export class RushScreen implements Screen {
           h(
             'div',
             { class: 'rush-about', 'data-role': 'rush-about' },
-            about('rushAboutWhatH', h('p', {}, t('rushAboutWhat'))),
+            // each text in short paragraphs and lines (SPEC_v0.7 §B)
+            about('rushAboutWhatH', ...narrationNodes(t('rushAboutWhat'))),
             about('rushAboutRunH', h('ol', { class: 'rush-steps' }, ...steps)),
-            about('rushAboutRuleH', h('p', {}, t('rushAboutRule'))),
-            about('rushAboutTiersH', h('p', {}, t('rushAboutTiers'))),
-            about('rushAboutScoreH', h('p', {}, t('rushAboutScore'))),
-            about('rushAboutFameH', h('p', {}, t('rushAboutFame'))),
+            about('rushAboutRuleH', ...narrationNodes(t('rushAboutRule'))),
+            about('rushAboutTiersH', ...narrationNodes(t('rushAboutTiers'))),
+            about('rushAboutScoreH', ...narrationNodes(t('rushAboutScore'))),
+            about('rushAboutFameH', ...narrationNodes(t('rushAboutFame'))),
           ),
         ),
         h('p', { class: 'rush-tut-link' }, h('a', { href: verdictPage(), 'data-role': 'rush-tutorial' }, t('rushTutorialLink'), ' →')),

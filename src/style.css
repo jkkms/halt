@@ -1073,14 +1073,12 @@ var {
 }
 
 /* ---------------------------------------------------------------- tutorial */
-/* v0.6: the stage fills the screen; the page text sits in one still box (upper left, the same rect on every page;
-   under the stage on phones), amber rings show what it talks about, the controls stay still in a pill at the
-   bottom, and a page's interactive card sits under the text box (or above the pill when there is no room). */
+/* v0.7: the stage fills the screen with the scene in its middle; the narration is a wide band along the bottom of
+   the stage (its top edge, left and width the same on every page, its height that of the page) with the controls,
+   the text and the page's interactive piece inside it; amber rings, one per piece, show what it talks about.
+   Phones: the stage, the code card, the narration with its controls, the piece. */
 
 .tut-screen {
-  --pill-b: 16px;
-  --pill-h: 54px;
-  --col-w: 400px;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -1145,12 +1143,11 @@ var {
   font-weight: 700;
 }
 
-/* the page text: a still box, placed and sized by tutorialView.ts (the longest page text fits); the level screen's
-   guide box (tourView.ts) has the same look */
+/* the narration (SPEC_v0.7): a band whose top edge, left and width stay put on every page and whose height follows
+   the page (placed by tutorialView.ts); the level screen's guide box (tourView.ts) has the same look */
 .tut-narr,
 .guide-box {
   box-sizing: border-box;
-  overflow: hidden;
   border-radius: 16px;
   background: #fff5e1;
   border: 2px solid var(--amber);
@@ -1159,8 +1156,10 @@ var {
 }
 
 .tut-narr {
-  position: absolute;
+  position: relative;
   z-index: 7;
+  display: flex;
+  flex-direction: column;
 }
 
 .tut-narr.waiting {
@@ -1168,38 +1167,55 @@ var {
 }
 
 .tut-narr-measure {
-  left: 0;
-  top: 0;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: auto;
   height: auto !important;
   visibility: hidden;
   pointer-events: none;
 }
 
+.tut-narr-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+/* the text: paragraphs (\n\n) of lines (\n); ①, ★ and "- " lines hang */
 .tut-narr-text {
+  box-sizing: border-box;
   margin: 0;
-  padding: 13px 17px 14px;
-  font-size: 15.5px;
-  line-height: 1.62;
+  font-size: 16.5px;
+  line-height: 1.6;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
+.tut-narr-text .np {
+  margin: 0;
+}
+
+.tut-narr-text .np + .np {
+  margin-top: 0.6em;
+}
+
+.nl {
+  display: block;
+}
+
+.nl.li {
+  padding-left: 1.35em;
+  text-indent: -1.35em;
+}
+
+.nl.li > * {
+  text-indent: 0;
+}
+
 .tut-narr.fs1 .tut-narr-text,
 .guide-box.fs1 .tut-narr-text {
-  font-size: 15px;
-  line-height: 1.58;
-}
-
-.tut-narr.fs2 .tut-narr-text,
-.guide-box.fs2 .tut-narr-text {
-  font-size: 14.5px;
-  line-height: 1.55;
-}
-
-.tut-narr.fs3 .tut-narr-text,
-.guide-box.fs3 .tut-narr-text {
-  font-size: 13.5px;
-  line-height: 1.52;
+  font-size: 16px;
 }
 
 .tut-narr-text.fade {
@@ -1225,11 +1241,39 @@ var {
   font-weight: 700;
 }
 
-/* focus rings: above the stage and the cards, under the text box; outside their target, so its text stays clear */
+/* wide screens: a band along the bottom of the stage; the controls in a row at its top (Next never moves), then the
+   text in a column of a comfortable width, the page's piece beside it at the right */
+.tut-desk .tut-narr {
+  position: absolute;
+  padding: 0 20px 14px;
+}
+
+.tut-desk .tut-narr-text {
+  flex: 0 0 auto;
+  width: var(--text-w, 760px);
+  min-height: 3.2em;
+}
+
+.tut-desk .tut-narr .tut-extra {
+  flex: 0 0 auto;
+  width: var(--piece-w, 400px);
+  margin-left: auto;
+}
+
+.tut-desk .tut-narr.stacked .tut-narr-body {
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tut-desk .tut-narr.stacked .tut-extra {
+  margin-left: 0;
+}
+
+/* focus rings: above the stage, the cards and the band (they sit outside their target, so its text stays clear) */
 .tut-rings {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 9;
   pointer-events: none;
   overflow: hidden;
 }
@@ -1255,8 +1299,42 @@ var {
   }
 }
 
+/* the code: a stronger ring (SPEC_v0.7 §C) */
+.tut-ring[data-target='code'],
+.tut-ring[data-target='codeLine'] {
+  border-width: 3px;
+  border-color: #ffb547;
+  box-shadow:
+    0 0 0 4px rgba(255, 181, 71, 0.35),
+    0 0 26px rgba(255, 190, 90, 0.85);
+  animation: ring-pulse-strong 1.5s ease-in-out infinite;
+}
+
+@keyframes ring-pulse-strong {
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(255, 181, 71, 0.16),
+      0 0 38px rgba(255, 190, 90, 1);
+  }
+}
+
+/* the focused code line: clearly amber, more than the usual "line running" light */
+.tut-code.focus-line .code-line.run {
+  background: rgba(255, 181, 71, 0.62);
+  color: #fff;
+  box-shadow: inset 4px 0 0 #ffcf7a;
+}
+
+.tut-code.focus-line .code-line.run.check-yes {
+  box-shadow: inset 5px 0 0 #7fe0ac;
+}
+
+.tut-code.focus-line .code-line.run.check-no {
+  box-shadow: inset 5px 0 0 #ff8a75;
+}
+
 /* the level screen's guide (SPEC_guide, tourView.ts): a layer over the page that lets clicks through; the rings and
-   the still box (over the stage's lower left, or a sheet at the bottom on the stacked layout), both placed in px */
+   the band (along the bottom of the stage, or a sheet near the bottom on the stacked layout), both placed in px */
 .guide {
   position: fixed;
   inset: 0;
@@ -1282,35 +1360,46 @@ var {
 }
 
 .guide-box.guide-measure {
-  left: 0;
-  top: 0;
+  left: 0 !important;
+  top: 0 !important;
   height: auto !important;
   visibility: hidden;
   pointer-events: none;
 }
 
+/* the title and the controls in a row at the top; the text under them */
+.guide-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 12px 7px 18px;
+  border-bottom: 1px solid rgba(201, 154, 98, 0.35);
+}
+
+.guide-box.stack-top .guide-head {
+  flex-basis: 100%;
+}
+
 .guide-head {
+  flex: 1 1 auto;
   margin: 0;
-  padding: 11px 17px 0;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 780;
   letter-spacing: 0.01em;
   color: var(--ember);
 }
 
 .guide-box .tut-narr-text {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: 3px;
-  padding-bottom: 8px;
+  max-width: var(--text-w, 800px);
+  padding: 10px 18px 14px;
 }
 
 .guide-nav {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px 12px;
+  margin-left: auto;
   white-space: nowrap;
 }
 
@@ -1325,16 +1414,12 @@ var {
   color: var(--ink-2);
 }
 
-.guide-nav .g-next {
-  margin-left: auto;
-}
-
 .guide-nav .g-skip {
-  margin-left: 4px;
+  margin-right: 4px;
   font-size: 13.5px;
 }
 
-/* while a tour is open: the stage caption makes room for the box (wide); the page can scroll past the sheet */
+/* while a tour is open: the stage caption makes room for the band (wide); the page can scroll past the sheet */
 .level-screen.guide-desk .stage-caption {
   visibility: hidden;
 }
@@ -1344,102 +1429,67 @@ var {
 }
 
 @media (max-width: 760px) {
-  .guide-head {
-    padding: 9px 14px 0;
+  .guide-top {
+    padding: 7px 9px 6px 14px;
   }
 
-  .guide-nav {
-    padding: 0 9px 9px;
+  .guide-box .tut-narr-text {
+    padding: 8px 14px 12px;
   }
 }
 
-/* the controls: still, compact, bottom centre of the stage */
+/* the controls: chapter · page, Skip, Back, Next */
 .tut-controls {
-  position: absolute;
-  left: 50%;
-  bottom: var(--pill-b);
-  z-index: 6;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: var(--pill-h);
-  max-width: calc(100% - 16px);
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(12, 19, 48, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  gap: 6px;
   white-space: nowrap;
 }
 
-.tc-prev {
-  min-height: 40px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--on-night);
-  font: 700 14.5px var(--sans);
-  cursor: pointer;
-}
-
-.tc-prev:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tc-prev:disabled {
-  opacity: 0.35;
-  cursor: default;
+.tut-desk .tut-controls {
+  order: -1;
+  margin: 0 -8px 10px -4px;
+  padding: 8px 0 7px;
+  border-bottom: 1px solid rgba(201, 154, 98, 0.35);
 }
 
 .tc-count {
-  min-width: 3.6em;
+  margin-right: auto;
   padding: 0 4px;
-  text-align: center;
   font: 700 13.5px var(--mono);
-  color: var(--on-night-2);
+  color: var(--ink-2);
 }
 
 .tc-chapter {
   font-family: var(--sans);
-  font-weight: 750;
-  color: var(--amber-2);
+  font-weight: 780;
+  color: var(--ember);
+}
+
+.tut-controls .tc-prev {
+  box-shadow: none;
 }
 
 .tut-controls .tc-next {
-  min-height: 40px;
-  padding: 7px 18px;
-  border-radius: 999px;
+  min-height: 38px;
+  padding: 6px 18px;
   box-shadow: none;
 }
 
 .tut-controls .skip {
-  margin: 0 8px 0 6px;
-  color: var(--on-night-2);
+  margin: 0 6px 0 0;
   font-size: 13.5px;
   font-weight: 600;
 }
 
-.tut-controls .skip:hover {
-  color: var(--on-night);
-}
-
-/* the interactive piece of a page: under the text box, or just above the controls (placed by tutorialView.ts) */
+/* the interactive piece of a page: in the band beside the text (wide), or under the narration (phones) */
 .tut-extra {
-  position: absolute;
-  left: 12px;
-  top: 0;
-  z-index: 6;
   box-sizing: border-box;
-  width: var(--col-w);
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 13px;
   background: var(--paper);
+  border: 1px solid var(--sand-3);
   color: var(--ink);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
 .tut-extra > * {
@@ -1447,21 +1497,32 @@ var {
   margin-bottom: 0 !important;
 }
 
-/* the shot buttons bottom left and the caption bottom right, beside the controls */
-.tut-stage .stage-caption {
-  left: auto;
-  right: 12px;
-  bottom: var(--pill-b);
-  max-width: min(420px, calc(50% - 232px));
+/* the verdict buttons' card is the piece itself (no frame inside the frame) */
+.tut-extra > .verdict-card-demo {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
-.tut-stage .stage-controls {
-  top: auto;
-  bottom: calc(var(--pill-b) + 10px);
-  left: 12px;
-  right: auto;
-  max-width: min(var(--col-w), calc(50% - 232px));
-  justify-content: flex-start;
+/* the shot buttons and the caption along the top edge of the stage, between the step counter and the code card */
+.tut-desk .tut-stage .stage-controls {
+  top: 12px;
+  bottom: auto;
+  left: var(--strip-x, 340px);
+  right: var(--strip-x, 340px);
+  max-width: none;
+  justify-content: center;
+}
+
+.tut-desk .tut-stage .stage-caption {
+  top: var(--cap-top, 12px);
+  bottom: auto;
+  left: var(--strip-x, 340px);
+  right: var(--strip-x, 340px);
+  width: fit-content;
+  max-width: calc(100% - 2 * var(--strip-x, 340px));
+  margin: 0 auto;
+  text-align: center;
 }
 
 /* the step mode (page 6): one button and the beat in words */
@@ -1604,6 +1665,8 @@ var {
   background: #fffaf1;
 }
 
+/* the try box (pages 10 and 13): the level screen's "남은 계단 수 = [ … ]" row, the status right under it, the chips
+   under that, the integer note small and quiet; only typed code is in the code font */
 .try {
   margin: 0;
 }
@@ -1614,27 +1677,48 @@ var {
   color: var(--ink-2);
 }
 
-.try-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.try .try-field {
+  margin-bottom: 0;
 }
 
-.try-field .field-name {
-  white-space: nowrap;
+.try .answer {
+  padding: 7px 11px;
+  font-size: 17px;
+}
+
+.try .answer::placeholder {
+  font-family: var(--sans);
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #a1937f;
 }
 
 .try-status {
-  margin: 6px 0 4px;
-  font-size: 13.5px;
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
   color: var(--ink-2);
 }
 
+.try .chips {
+  margin: 10px 0 0;
+}
+
+.try .int-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  opacity: 0.85;
+}
+
 .try-status.ok {
+  font-size: 13px;
   color: var(--good);
 }
 
 .try-status.bad {
+  font-size: 13px;
   color: var(--bad);
 }
 
@@ -2475,6 +2559,10 @@ var {
   margin: 0;
 }
 
+.rush-about-item .np + .np {
+  margin-top: 0.5em;
+}
+
 .rush-steps {
   margin: 0;
   padding-left: 20px;
@@ -3293,10 +3381,9 @@ var {
     gap: 10px;
   }
 
-  /* phones: the stage with the controls at its bottom; under it the text box, the code and the interactive card */
+  /* phones (SPEC_v0.7 §A): the stage, then the code card, then the narration (its text, then the controls, which
+     stay in view at the bottom of the screen while the text runs past it), then the interactive piece */
   .tut-screen {
-    --pill-b: 10px;
-    --pill-h: 50px;
     height: auto;
     min-height: 100dvh;
   }
@@ -3308,15 +3395,14 @@ var {
     flex: 1 0 auto;
   }
 
-  /* about half the screen, so the text box under it shows without scrolling */
   .tut-stage {
     position: relative;
     inset: auto;
     flex: 0 0 auto;
-    height: clamp(330px, 52dvh, 520px);
+    height: clamp(300px, 46dvh, 480px);
   }
 
-  /* the text box: static under the stage (its height is that of the longest page text, set by tutorialView.ts) */
+  /* the narration: static under the code card, as tall as its page's text */
   .tut-narr {
     position: relative;
     flex: 0 0 auto;
@@ -3324,34 +3410,52 @@ var {
     box-shadow: 0 4px 14px rgba(6, 8, 24, 0.18);
   }
 
-  .tut-narr-measure {
-    position: absolute;
-    margin: 0;
-  }
-
   .tut-narr-text {
-    padding: 11px 14px 12px;
-    font-size: 14.5px;
-    line-height: 1.55;
+    padding: 11px 14px 10px;
+    font-size: 15.5px;
+    line-height: 1.6;
+    min-height: 3.2em;
   }
 
-  .tut-extra {
-    position: static;
-    width: auto !important;
-    max-height: none;
-    overflow: visible;
-    padding: 12px 16px 18px;
-    border-radius: 0;
-    box-shadow: none;
+  .tut-narr.fs1 .tut-narr-text,
+  .guide-box.fs1 .tut-narr-text {
+    font-size: 15px;
   }
 
-  /* the chapter over the page number */
+  .tut-controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    gap: 4px;
+    padding: 6px 8px 8px;
+    border-top: 1px solid rgba(201, 154, 98, 0.35);
+    border-radius: 0 0 14px 14px;
+    background: #fff5e1;
+  }
+
+  .tut-controls .tc-prev {
+    order: 1;
+  }
+
   .tc-count {
+    order: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: 0 auto;
     line-height: 1.2;
     font-size: 12.5px;
+  }
+
+  .tut-controls .tc-next {
+    order: 3;
+    padding: 6px 14px;
+    font-size: 14.5px;
+  }
+
+  .tut-controls .skip {
+    order: 4;
+    margin: 0 2px 0 6px;
   }
 
   .tc-chapter {
@@ -3362,17 +3466,12 @@ var {
     display: none;
   }
 
-  .tc-prev {
-    padding: 0 10px;
-    font-size: 14px;
+  .tut-extra {
+    margin: 10px 8px 0;
+    padding: 12px 14px 14px;
   }
 
-  .tut-controls .tc-next {
-    padding: 6px 14px;
-    font-size: 14.5px;
-  }
-
-  /* the step counter top left, the shot buttons top right, the caption just above the controls */
+  /* the step counter top left, the shot buttons top right, the caption at the bottom */
   .tut-stage .stage-hud {
     max-width: 58%;
   }
@@ -3387,7 +3486,7 @@ var {
   }
 
   .tut-stage .stage-caption {
-    bottom: calc(var(--pill-b) + var(--pill-h) + 8px);
+    bottom: 8px;
     right: 8px;
     max-width: none;
   }
@@ -3395,9 +3494,9 @@ var {
   .tut-code {
     position: static;
     width: auto;
-    margin-top: 10px;
+    margin: 10px 10px 0;
     padding: 8px 12px 2px;
-    border-radius: 0;
+    border-radius: 12px;
     box-shadow: none;
     background: var(--sand);
   }

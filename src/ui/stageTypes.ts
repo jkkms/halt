@@ -55,8 +55,8 @@ export interface Insets {
 /** Freeze the run at a beat: the start, the i-th loop check (decided), or the check that fails. */
 export type StageHold = { at: 'start' } | { at: 'check'; i: number } | { at: 'lastCheck' };
 
-/** Something on the stage a ring can be drawn around (SPEC_v0.6 §C). */
-export type StageTarget = 'walker' | 'stairHere' | 'check' | 'door' | 'ruler' | 'mark' | 'ring' | 'zone' | 'railing' | 'ghost';
+/** Something on the stage a ring can be drawn around (SPEC_v0.6 §C; `floorStep`: the steps where a pair's first part goes down). */
+export type StageTarget = 'walker' | 'stairHere' | 'check' | 'door' | 'ruler' | 'mark' | 'floorStep' | 'ring' | 'zone' | 'railing' | 'ghost';
 
 /** A rectangle in px of the stage box. */
 export interface Rect {
@@ -74,8 +74,11 @@ export interface ShowOptions {
   onBeat?: (b: PlayInfo) => void;
   /** Camera distance multiplier (title: further away). */
   zoom?: number;
-  /** Frame the scene inside the stage minus these insets. */
-  inset?: Insets;
+  /**
+   * Frame the scene inside the stage minus these insets; several: the one where the scene comes out largest
+   * (src/ui/frame.ts).
+   */
+  inset?: Insets | Insets[];
   /** Boxes over the stage (px of the stage box) that labels must keep out of: they move off them or hide. */
   keepOut?: Rect[];
   /** Freeze at a beat instead of playing. */
@@ -86,6 +89,8 @@ export interface ShowOptions {
   frame?: 'auto' | 'all';
   /** Show every flat/up/below mark at once (default: only the one where the walker is). */
   allMarks?: boolean;
+  /** Called at the end of every drawn frame, once the labels are placed (focus rings follow them in the same frame). */
+  onFrame?: () => void;
 }
 
 /** Where a run stands in step mode or on a held page. */
@@ -103,12 +108,15 @@ export interface StageRenderer {
   resize(): void;
   dispose(): void;
   /** Change the insets (and the boxes labels keep out of) without restarting the run. */
-  setInset(inset: Insets | undefined, keepOut?: Rect[]): void;
+  setInset(inset: Insets | Insets[] | undefined, keepOut?: Rect[]): void;
   /** Step mode: play the next beat; false when there is none. */
   step(): boolean;
   holdState(): HoldState;
-  /** A focus target in px of the stage box, as of the last frame; null when it is not on screen. */
-  focusRect(target: StageTarget): Rect | null;
+  /**
+   * A focus target in px of the stage box, as of the last frame: one rect per piece (every mark with its step, every
+   * floor tick, …); none when it is not on screen.
+   */
+  focusRects(target: StageTarget): Rect[];
 }
 
 export interface RendererHooks {

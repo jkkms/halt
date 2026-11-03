@@ -5,6 +5,8 @@
 // SPEC_v0.6: the scene can be framed inside insets (room for the tutorial's text box and cards), held at a beat or
 // stepped one beat at a time, reports where its parts are on screen (for the tutorial's focus rings), and lays its
 // labels out every frame so that none covers another, the walker or the loop-check bubble.
+// SPEC_v0.7: of several frames offered it takes the one where the scene comes out largest (src/ui/frame.ts), and a
+// focus target made of several pieces (every mark with its step, every floor tick, …) is reported piece by piece.
 
 import {
   ACESFilmicToneMapping,
@@ -38,6 +40,7 @@ import { beats, type Bad, type StageScene } from '../core/stage.ts';
 import type { State } from '../core/sim.ts';
 import type { HoldState, Insets, PlayInfo, Rect, RendererHooks, ShowOptions, StageRenderer, StageTarget, StageText } from './stageTypes.ts';
 import { Figure } from './figure3d.ts';
+import { fitDistance, pickFrame } from './frame.ts';
 import { layoutLabels, type LabelIn } from './labelLayout.ts';
 import { climb, exit, fall, fallIn, guard, sstep, stand, stepMs, stumble, walk, type Placed, type Side } from './gait.ts';
 
@@ -190,6 +193,14 @@ class Stage3D implements StageRenderer {
   private doorBox: Box3 | null = null;
   private poleBox: Box3 | null = null;
   private ghostBox: Box3 | null = null;
+  /** The step leaving stair k where a flat or up mark is (its red sign and the edge between the two stairs), by k. */
+  private markBoxes = new Map<number, Box3>();
+  /** The steps where a pair's first part (the floor) goes down. */
+  private floorSteps: Box3[] = [];
+  /** The walk: every stair top and the walker's height above it. */
+  private walkBox: Box3 | null = null;
+  /** The frame the scene is fitted in (one of the insets offered). */
+  private frameInset: Insets | undefined;
   /** Held at a beat (a held page, or step mode between presses). */
   private holding = false;
   /** Step mode: play on to this segment and time, then hold. */
@@ -298,7 +309,9 @@ class Stage3D implements StageRenderer {
   private applyView(): void {
     const w = this.parent.clientWidth || 1;
     const h = this.parent.clientHeight || 1;
-    const i = this.opts.inset;
+    const offered = this.opts.inset;
+    const i = Array.isArray(offered) ? pickFrame(offered, { w, h }, this.bounds, this.fitOpts()) : offered;
+    this.frameInset = i;
     if (i && (i.top || i.right || i.bottom || i.left)) {
       const fw = Math.max(80, w - i.left - i.right);
       const fh = Math.max(80, h - i.top - i.bottom);
@@ -310,7 +323,7 @@ class Stage3D implements StageRenderer {
     this.camera.updateProjectionMatrix();
   }
 
-  setInset(inset: Insets | undefined, keepOut?: Rect[]): void {
+  setInset(inset: Insets | Insets[] | undefined, keepOut?: Rect[]): void {
     this.opts = { ...this.opts, inset, keepOut };
     this.applyView();
     this.snap = true;
@@ -344,30 +357,46 @@ class Stage3D implements StageRenderer {
     return { held: this.holding, done: this.stepDone && this.holding };
   }
 
-  focusRect(target: StageTarget): Rect | null {
+  focusRects(target: StageTarget): Rect[] {
     // a label the walker covers for a moment still counts where it was, so a ring does not jump
-    const visible = (role: Role) => this.labels.filter((l) => l.role === role).map((l) => l.rect ?? l.parked);
+    const shown = (l: Label) => l.rect ?? l.parked;
+    const visible = (role: Role) => this.labels.filter((l) => l.role === role).map(shown);
+    const one = (r: Rect | null | undefined): Rect[] => (r && r.w > 0 && r.h > 0 ? [r] : []);
     switch (target) {
       case 'walker':
-        return this.walkerRect;
+        return one(this.walkerRect);
       case 'stairHere':
-        return this.labels.find((l) => l.role === 'badge' && l.node === this.walkerIndex && !l.hidden)?.rect ?? null;
+        return one(this.labels.find((l) => l.role === 'badge' && l.node === this.walkerIndex && !l.hidden)?.rect);
       case 'check':
-        return this.checkRect;
+        return one(this.checkRect);
       case 'door':
-        return union([this.project(this.doorBox), ...visible('door')]);
-      case 'ruler':
-        return union([this.project(this.poleBox), ...visible('tick'), ...visible('basement')]);
+        // the door with its sign is one piece
+        return one(union([this.project(this.doorBox), ...visible('door')]));
+      case 'ruler': {
+        // a pair's ruler: one ring per floor tick; else the pole with its ticks
+        const floors = this.labels.filter((l) => l.role === 'tick' && l.el.classList.contains('floor')).map(shown);
+        if (floors.length) return floors.filter((r): r is Rect => !!r);
+        return one(union([this.project(this.poleBox), ...visible('tick'), ...visible('basement')]));
+      }
       case 'mark':
-        return union(visible('mark'));
+        // every mark with the step it belongs to (a mark below ground: its label, which sits on its stair)
+        return this.labels
+          .filter((l) => l.role === 'mark')
+          .flatMap((l) => {
+            const r = shown(l);
+            if (!r) return [];
+            return one(union([r, this.project(this.markBoxes.get(l.node ?? -1) ?? null)]));
+          });
+      case 'floorStep':
+        return this.floorSteps.flatMap((b) => one(this.project(b)));
       case 'ring':
-        return this.ring ? union([...visible('inf'), this.project(new Box3().setFromPoints(this.nodes.map((n) => n.p)))]) : null;
+        return this.ring ? one(union([...visible('inf'), this.project(new Box3().setFromPoints(this.nodes.map((n) => n.p)))])) : [];
       case 'zone':
-        return union(visible('zone'));
+        return one(union(visible('zone')));
       case 'railing':
-        return union(visible('rail'));
+        return one(union(visible('rail')));
       case 'ghost':
-        return union([this.project(this.ghostBox), ...visible('ghost')]);
+        return one(union([this.project(this.ghostBox), ...visible('ghost')]));
     }
   }
 
@@ -403,6 +432,14 @@ class Stage3D implements StageRenderer {
         this.buildRing(scene);
         break;
     }
+    // the walk on screen (for the browser checks): every stair top, the stairs under them and the walker above
+    const tops = this.nodes.map((n) => n.p);
+    if (tops.length) {
+      const b = new Box3().setFromPoints(tops);
+      b.min.set(b.min.x - SW / 2, Math.min(0, b.min.y), Math.min(b.min.z, -D / 2));
+      b.max.set(b.max.x + SW / 2, b.max.y + 1.3, Math.max(b.max.z, D / 2));
+      this.walkBox = b;
+    }
     this.applyView();
     this.snap = true;
     this.restart(true);
@@ -427,6 +464,9 @@ class Stage3D implements StageRenderer {
     this.doorBox = null;
     this.poleBox = null;
     this.ghostBox = null;
+    this.markBoxes = new Map();
+    this.floorSteps = [];
+    this.walkBox = null;
     this.doorLight = null;
     this.doorGlow = null;
     this.hole = null;
@@ -450,6 +490,8 @@ class Stage3D implements StageRenderer {
     el.className = `l3 ${cls}`;
     el.innerHTML = html;
     el.dataset.role = role;
+    // hidden until the next frame places it (a scene that was just built has no camera on it yet)
+    el.style.display = 'none';
     this.layer.append(el);
     this.labels.push({ el, at, role, ...more, dy: 0, hidden: false, rect: null, parked: null });
     return el;
@@ -622,8 +664,26 @@ class Stage3D implements StageRenderer {
       const sub = this.hooks.format.state(scene.vars, s.s);
       this.label('badge', `<b>${this.esc(lbl)}</b><small>${this.esc(sub)}</small>`, `l3-v${s.bad === 'below' ? ' bad' : ''}${scene.real ? ' real' : ''}`, () => new Vector3(cx, top + 0.08, D / 2 + 0.05), { near: k, node: k });
       if (s.bad === 'flat' || s.bad === 'up') this.stepMark(k, s.bad, top);
-      if (s.bad === 'below') this.label('mark', this.esc(this.text.below), 'l3-mark', () => new Vector3(cx, top - 0.35, D / 2), { when: () => this.markShown(k) });
+      // (its ring goes around the label alone: it sits on the red stair's face, and stairs below ground are close)
+      if (s.bad === 'below') this.label('mark', this.esc(this.text.below), 'l3-mark', () => new Vector3(cx, top - 0.35, D / 2), { node: k, when: () => this.markShown(k) });
     });
+    // the step between two stairs: the edge where one stair meets the next, from the lower top to the higher one
+    // (a mark's step, a floor change)
+    const stepBox = (k: number) => {
+      const a = this.nodes[k]!.p;
+      const b = this.nodes[k + 1]!.p;
+      const x = (k + 1) * SW;
+      return new Box3(new Vector3(x - 0.35, Math.min(a.y, b.y) - 0.08, D / 2 - 0.2), new Vector3(x + 0.35, Math.max(a.y, b.y) + 0.12, D / 2 + 0.05));
+    };
+    st.forEach((s, k) => {
+      if (k + 1 >= this.nodes.length) return;
+      if (s.bad === 'flat' || s.bad === 'up') this.markBoxes.set(k, this.markBoxes.get(k)!.union(stepBox(k)));
+      // a floor change between two stairs (the walk out to the door is no new floor)
+      const v = s.v;
+      const w = st[k + 1]!.v;
+      if (scene.tuple && s.walking && st[k + 1]!.walking && v && w && v.length > 1 && w[0]! < v[0]!) this.floorSteps.push(stepBox(k));
+    });
+
     if (scene.end === 'more' && n > 0) {
       const last = this.nodes[n - 1]!.p;
       this.label('more', this.esc(this.text.more), 'l3-more', () => new Vector3(last.x + 0.9, last.y + 0.2, 0.4));
@@ -681,7 +741,9 @@ class Stage3D implements StageRenderer {
     } else {
       for (const dy of [0.42, 0.56]) this.block(x - 0.25, x + 0.25, top + dy, top + dy + 0.06, D / 2 - 0.18, D / 2 - 0.12, this.mats.redMark!, false);
     }
-    this.label('mark', this.esc(bad === 'up' ? this.text.up : this.text.flat), 'l3-mark', () => new Vector3(x, top + 1.1, D / 2 - 0.1), { when: () => this.markShown(k) });
+    this.label('mark', this.esc(bad === 'up' ? this.text.up : this.text.flat), 'l3-mark', () => new Vector3(x, top + 1.1, D / 2 - 0.1), { node: k, when: () => this.markShown(k) });
+    // the red sign (the step itself joins it once both stairs are built)
+    this.markBoxes.set(k, new Box3(new Vector3(x - 0.25, top + 0.25, D / 2 - 0.2), new Vector3(x + 0.25, top + 0.9, D / 2 - 0.1)));
   }
 
   /** A brass railing along the walking stairs. */
@@ -1029,20 +1091,13 @@ class Stage3D implements StageRenderer {
 
   // ------------------------------------------------------------ camera
 
+  /** How the scene is fitted: a ring and the tutorial's whole-scene frames are never followed (a shaft is). */
+  private fitOpts(): { ring: boolean; all: boolean } {
+    return { ring: this.model?.k === 'ring', all: this.opts.frame === 'all' && this.model?.k !== 'shaft' };
+  }
+
   private fit(): { dist: number; follow: boolean } {
-    const tanV = Math.tan(((this.camera.fov / 2) * Math.PI) / 180);
-    const tanH = tanV * this.camera.aspect;
-    const { x0, x1, y0, y1 } = this.bounds;
-    const W = x1 - x0;
-    const H = y1 - y0;
-    const need = Math.max(H / 2 / tanV, W / 2 / tanH, 8.5) * 1.12 + 1.6;
-    const narrow = this.camera.aspect < 1.1;
-    const cap = narrow ? 17 : 21;
-    const all = this.opts.frame === 'all' && this.model?.k !== 'shaft';
-    if (need <= cap || this.ring || all) return { dist: Math.min(need, 28), follow: false };
-    const Wf = narrow ? 6.2 : 10;
-    const Hf = Math.min(H, narrow ? 6.5 : 5.5);
-    return { dist: Math.max(Hf / 2 / tanV, Wf / 2 / tanH) * 1.05 + 1.4, follow: true };
+    return fitDistance(this.bounds, this.camera.aspect, this.fitOpts());
   }
 
   private updateCamera(dt: number): void {
@@ -1199,6 +1254,15 @@ class Stage3D implements StageRenderer {
     set('walker', rectAttr(this.walkerRect));
     set('door', rectAttr(this.project(this.doorBox)));
     set('ruler', rectAttr(this.project(this.poleBox)));
+    set('walk', rectAttr(this.project(this.walkBox)));
+    // every stair: where it is on screen and its state (the checks find the steps where the floor changes)
+    const v = new Vector3();
+    // (the idle scene's stair has no state)
+    const W = this.parent.clientWidth;
+    const H = this.parent.clientHeight;
+    set('stairs', JSON.stringify(this.nodes.map((n) => (v.copy(n.p).project(this.camera), [Math.round(((v.x + 1) / 2) * W), Math.round(((1 - v.y) / 2) * H), this.hooks.format.state(Object.keys(n.state), n.state), n.walking ? 1 : 0]))));
+    const f = this.frameInset;
+    set('frame', f ? `${f.top},${f.right},${f.bottom},${f.left}` : '');
     set('held', String(this.holding));
   }
 
@@ -1216,5 +1280,6 @@ class Stage3D implements StageRenderer {
     this.updateBubble();
     this.updateLabels();
     this.publish();
+    this.opts.onFrame?.();
   }
 }

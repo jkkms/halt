@@ -134,7 +134,7 @@ export class StageHost {
   }
 
   /** Frame the scene inside these insets (px of the stage box) without restarting the run. */
-  setInset(inset: Insets | undefined, keepOut?: Rect[]): void {
+  setInset(inset: Insets | Insets[] | undefined, keepOut?: Rect[]): void {
     if (this.current) this.current.opts = { ...this.current.opts, inset, keepOut };
     this.renderer?.setInset(inset, keepOut);
   }
@@ -148,9 +148,9 @@ export class StageHost {
     return this.renderer?.holdState() ?? { held: true, done: false };
   }
 
-  /** A focus target on the stage in px of the stage box; null when it is not on screen (or on the flat drawing). */
-  focusRect(target: StageTarget): Rect | null {
-    return this.renderer?.focusRect(target) ?? null;
+  /** A focus target on the stage in px of the stage box, one rect per piece; none when it is not on screen (or on the flat drawing). */
+  focusRects(target: StageTarget): Rect[] {
+    return this.renderer?.focusRects(target) ?? [];
   }
 
   /** Show a beat in the step counter without the renderer (the flat drawing in the tutorial's step mode). */

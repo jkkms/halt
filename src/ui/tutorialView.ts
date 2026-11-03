@@ -1,9 +1,12 @@
-// The tutorial player (SPEC_v0.6, with the author's change to §A): the stage fills the screen; the page text sits
-// in a still text box (upper left on a wide screen, under the stage on a phone) that has the same place and size on
-// every page; amber rings show what the text talks about. Back, the chapter and page counter, Next and Skip stay
-// still in a pill at the bottom of the stage; a page's interactive piece sits in a card under the text box (or just
-// above the pill when there is no room; under the stage on phones). The same player shows the 14-page tutorial and
-// the short intros before levels 5, 7 and 10.
+// The tutorial player (SPEC_v0.6, SPEC_v0.7 §A): the stage fills the screen and the scene stays in its middle; the
+// narration is a wide band along the bottom of the stage whose top edge, left and width stay put on every page and
+// whose height is that of the page: the controls (the chapter and page counter, Skip, Back, Next) in a row at its
+// top, then the page text at its left and the page's interactive piece beside it at its right (under the text when
+// there is no room). The shot buttons and the
+// caption sit along the top edge of the stage, between the step counter (top left) and the code card (top right).
+// Phones: the stage, then the code card, then the narration with its controls, then the piece. Amber rings, one per
+// piece, show what the text talks about. The same player shows the 14-page tutorial and the intros before levels 5,
+// 7 and 10.
 import { ExprError } from '../core/expr.ts';
 import { proofLength, parseV } from '../core/game.ts';
 import { codePreview, recommendedNext } from '../core/groups.ts';
@@ -13,7 +16,6 @@ import {
   CHAPTERS,
   focusOf,
   heldBeat,
-  INTROS,
   introFor,
   program,
   sceneStart,
@@ -33,10 +35,10 @@ import { codeView, follow, type CodeView } from './code.ts';
 import { h } from './dom.ts';
 import { errorText } from './errors.ts';
 import { pretty, starsText } from './format.ts';
-import { FONT_STEPS, richNodes as rich, RingLayer, tallestText } from './guide.ts';
+import { FONT_STEPS, narrationNodes, richNodes as rich, RingLayer, type RingSpec } from './guide.ts';
 import { lang, t } from './i18n.ts';
 import type { Insets, PlayInfo, StageHold, StageTarget } from './stageTypes.ts';
-import { boxWidth, cardWidth, deskLayout, maxBoxHeight, phoneInset, ringBox, textBox, type Box } from './tutLayout.ts';
+import { BAND, bandBox, bandColumns, clip, linePieces, phoneInset, pieceWidth, ringBox, sceneFrames, topStrip, type BandCols, type Box } from './tutLayout.ts';
 
 export type TutorialMode = { k: 'tutorial' } | { k: 'intro'; level: number; returnTo: string };
 
@@ -44,9 +46,6 @@ export type TutorialMode = { k: 'tutorial' } | { k: 'intro'; level: number; retu
 const FALLBACK_MS = 6500;
 /** Phones and narrow windows: the text box and the cards go under the stage (matches the CSS). */
 const NARROW = '(max-width: 760px)';
-
-/** Every page the box must fit: the tutorial and all intros share one box. */
-const ALL_PAGES: TutPage[] = [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
 
 const toHold = (hold: Hold): StageHold => (hold === 'start' ? { at: 'start' } : hold === 'lastCheck' ? { at: 'lastCheck' } : { at: 'check', i: Number(hold.split(':')[1]) });
 
@@ -64,8 +63,9 @@ function playInfo(b: StepBeat): PlayInfo {
   }
 }
 
-const sameInset = (a: Insets | undefined, b: Insets) => !!a && a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
 const round = (i: Insets): Insets => ({ top: Math.round(i.top), right: Math.round(i.right), bottom: Math.round(i.bottom), left: Math.round(i.left) });
+/** The step counter's room at the top left of the stage, whatever it shows (it changes with every beat). */
+const HUD_ROOM = { w: 280, h: 30 };
 
 export class TutorialScreen implements Screen {
   el: HTMLElement;
@@ -80,12 +80,18 @@ export class TutorialScreen implements Screen {
   /** The page's interactive piece (verdict buttons, the try-it box, the step button, the legend, the level card). */
   private extraBox = h('div', { class: 'tut-extra', 'data-role': 'extra' });
   private controls = h('nav', { class: 'tut-controls' });
-  /** The page text: one still box. */
-  private narrText = h('p', { class: 'tut-narr-text', 'aria-live': 'polite' });
-  private narr = h('div', { class: 'tut-narr', 'data-role': 'narration' }, this.narrText);
-  /** An invisible copy of the box, to measure the longest page text. */
-  private measureText = h('p', { class: 'tut-narr-text' });
-  private measure = h('div', { class: 'tut-narr tut-narr-measure', 'aria-hidden': 'true' }, this.measureText);
+  /**
+   * The narration (SPEC_v0.7 §A as changed by the author): one band whose top edge, left and width stay put on every
+   * page, as tall as this page's text (and piece) need. Wide screens: the controls in a row at its top, then the
+   * text with the piece beside it; phones: the text, then the controls.
+   */
+  private narrText = h('div', { class: 'tut-narr-text', 'aria-live': 'polite' });
+  private narrBody = h('div', { class: 'tut-narr-body' }, this.narrText);
+  private narr = h('div', { class: 'tut-narr', 'data-role': 'narration' }, this.narrBody, this.controls);
+  /** Invisible copies, to measure every page's text at the text column's width and every page's piece. */
+  private measureText = h('div', { class: 'tut-narr-text' });
+  private measurePiece = h('div', { class: 'tut-extra' });
+  private measure = h('div', { class: 'tut-narr tut-narr-measure', 'aria-hidden': 'true' }, this.measureText, this.measurePiece);
   private rings = h('div', { class: 'tut-rings', 'aria-hidden': 'true' });
   private ringLayer = new RingLayer(this.rings);
   private code: CodeView | null = null;
@@ -104,12 +110,16 @@ export class TutorialScreen implements Screen {
   private raf = 0;
   private ro: ResizeObserver | null = null;
   private layoutKey = '';
-  private boxH = 0;
+  private cols: BandCols | null = null;
+  /** Wide screens: the band's fixed top edge and its tallest height (that of the page that needs most). */
+  private bandTop = 0;
+  private bandMax = 0;
   private font = '';
-  private inset: Insets | undefined;
-  /** What labels on the stage keep out of: the text box and the cards over the stage. */
+  private inset: Insets | Insets[] | undefined;
+  private insetKey = '';
+  /** The band and what else is over the stage (px of the stage box): rings and labels keep off them. */
+  private band: Box | null = null;
   private keepOut: Box[] = [];
-  private keptKey = '';
   private onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === 'ArrowRight') this.go(this.page + 1);
@@ -144,8 +154,9 @@ export class TutorialScreen implements Screen {
   private build(): void {
     const back = this.mode.k === 'tutorial' ? { label: t('backTitle'), href: '#/' } : { label: t('levelN', { n: this.mode.level }), href: this.mode.returnTo };
     const bar = this.app.bar({ back, title: this.title(), dark: true });
-    this.stageBox.replaceChildren(this.controls);
-    this.main.replaceChildren(this.stageBox, this.narr, this.codeBox, this.extraBox, this.rings, this.measure);
+    this.stageBox.replaceChildren();
+    // phones show them in this order: the stage, the code card, the narration, the piece
+    this.main.replaceChildren(this.stageBox, this.codeBox, this.narr, this.extraBox, this.rings, this.measure);
     this.el.replaceChildren(bar, this.main);
     this.layoutKey = '';
   }
@@ -199,7 +210,7 @@ export class TutorialScreen implements Screen {
     const L = lang();
     if (this.mode.k === 'tutorial' && this.last()) this.markTutorial('done');
     // the page text; the box stays where it is, only the words change (a gentle fade)
-    this.narrText.replaceChildren(...rich(p.text[L]));
+    this.narrText.replaceChildren(...narrationNodes(p.text[L]));
     this.narrText.classList.remove('fade');
     void this.narrText.offsetWidth;
     this.narrText.classList.add('fade');
@@ -213,14 +224,18 @@ export class TutorialScreen implements Screen {
     this.stepStatus = null;
 
     this.codeProg = null;
-    const extra = this.extra(p);
+    const extra = this.extra(p, true);
     this.extraBox.replaceChildren(...(extra ? [extra] : []));
     this.extraBox.hidden = !extra;
     this.el.classList.toggle('has-extra', !!extra);
+    // the code focus is stronger (SPEC_v0.7 §C): the card's ring is thicker, the focused line clearly amber
+    const focus = [...(p.focus ?? []), ...p.shots.flatMap((sh) => sh.focus ?? [])];
+    this.codeBox.classList.toggle('focus-code', focus.includes('code'));
+    this.codeBox.classList.toggle('focus-line', focus.includes('codeLine'));
 
-    // the controls stay still at the bottom of the stage: Back, chapter · page, Next, Skip
+    // the controls: chapter · page, Skip, Back, Next (a row at the band's top on a wide screen, so Next never moves)
     const n = this.pages.length;
-    const prev = h('button', { type: 'button', class: 'tc-prev', 'data-role': 'prev', disabled: this.page === 0, onclick: () => this.go(this.page - 1) }, `← ${t('prevPage')}`);
+    const prev = h('button', { type: 'button', class: 'btn small ghost tc-prev', 'data-role': 'prev', disabled: this.page === 0, onclick: () => this.go(this.page - 1) }, `← ${t('prevPage')}`);
     const target = this.mode.k === 'tutorial' ? 1 : this.mode.level;
     const next = this.last()
       ? h('button', { type: 'button', class: 'btn primary tc-next', 'data-role': 'finish', onclick: () => this.finish() }, `${t('startLevelN', { n: target })} →`)
@@ -228,7 +243,7 @@ export class TutorialScreen implements Screen {
     const skip = this.last() ? null : h('button', { type: 'button', class: 'skip', 'data-role': 'skip', onclick: () => this.skip() }, t('skip'));
     const chapter = p.chapter ? h('span', { class: 'tc-chapter', 'data-role': 'chapter' }, CHAPTERS[p.chapter][L]) : null;
     const count = h('span', { class: 'tc-count', 'data-role': 'count' }, ...(chapter ? [chapter, h('span', { class: 'tc-dot' }, ' · ')] : []), h('span', { class: 'tc-num' }, t('pageOf', { i: this.page + 1, n })));
-    this.controls.replaceChildren(prev, count, next, ...(skip ? [skip] : []));
+    this.controls.replaceChildren(count, ...(skip ? [skip] : []), prev, next);
     this.showShot(0);
   }
 
@@ -289,6 +304,8 @@ export class TutorialScreen implements Screen {
       frame: 'all',
       allMarks: true,
       onBeat: (b) => this.beat(b),
+      // the rings follow the stage in the very frame it draws (no frame behind a label that just moved)
+      onFrame: () => this.paintRings(),
     });
     this.stageBox.dataset.shot = String(this.shot);
     // what a held page shows (the stage reports the same beats; the flat drawing does not)
@@ -383,15 +400,30 @@ export class TutorialScreen implements Screen {
     return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
   }
 
-  /** The tallest page text at this width (with the current font step). */
-  private tallest(width: number): number {
+  /**
+   * The body a page needs in the band at these columns: its text, and its piece beside it (the taller of the two)
+   * or under it when there is no room beside (the current font step; measured in the hidden copy).
+   */
+  private bodyHeights(cols: BandCols, bandW: number): number[] {
     const L = lang();
-    return tallestText(this.measure, this.measureText, width, ALL_PAGES.map((p) => p.text[L]));
+    this.measureText.style.width = `${cols.text.w}px`;
+    this.measurePiece.style.width = `${pieceWidth(cols, bandW)}px`;
+    return this.pages.map((p) => {
+      this.measureText.replaceChildren(...narrationNodes(p.text[L]));
+      const text = this.measureText.offsetHeight;
+      const piece = p.extra ? this.extra(p, false) : null;
+      this.measurePiece.replaceChildren(...(piece ? [piece] : []));
+      const ph = piece ? this.measurePiece.offsetHeight : 0;
+      this.measurePiece.replaceChildren();
+      if (!ph) return text;
+      return cols.piece ? Math.max(text, ph) : text + BAND.gap / 2 + ph;
+    });
   }
 
   /**
-   * Place the text box (once per stage size and language: the same rect on every page), the page's card and the
-   * scene's insets. Called on every page and shot (the card, the code and the caption change), and on resize.
+   * Place the band (once per stage size and language: its top edge, left and width are the same on every page; its
+   * height follows the page), the shot strip and the scene's frames, which keep above the tallest band so the scene
+   * never moves between pages. Called on every page and shot (the code and the caption change), and on resize.
    */
   private relayout(): void {
     const main = this.main;
@@ -402,29 +434,41 @@ export class TutorialScreen implements Screen {
     const SH = stageEl.clientHeight;
     if (!W || !SW || !SH) return;
     const base = stageEl.getBoundingClientRect();
-    const pill = this.rel(this.controls.getBoundingClientRect(), base);
     const key = `${narrow ? 'n' : 'w'}:${W}x${narrow ? 0 : SH}:${lang()}`;
+    const ex = this.extraBox;
     if (key !== this.layoutKey) {
       this.layoutKey = key;
-      const width = narrow ? W - 2 * 8 : boxWidth(SW);
-      const limit = narrow ? Infinity : maxBoxHeight(SH, pill);
-      for (const f of FONT_STEPS) {
-        this.font = f;
-        this.measure.className = `tut-narr tut-narr-measure ${f}`.trim();
-        this.boxH = this.tallest(width);
-        if (this.boxH <= limit) break;
-      }
-      this.narr.className = `tut-narr ${this.font}`.trim();
-      this.narr.style.height = `${this.boxH}px`;
+      this.el.classList.toggle('tut-desk', !narrow);
       if (narrow) {
-        this.narr.style.left = this.narr.style.top = this.narr.style.width = '';
+        // phones: the narration under the code card takes its content's height; the piece comes after it
+        this.cols = null;
+        this.font = '';
+        if (ex.parentElement !== main) this.narr.after(ex);
+        for (const p of ['left', 'top', 'width', '--text-w', '--piece-w']) this.narr.style.removeProperty(p);
+        this.narr.className = 'tut-narr';
       } else {
-        const box = textBox({ w: SW, h: SH }, this.boxH);
-        this.narr.style.left = `${box.x}px`;
-        this.narr.style.top = `${box.y}px`;
-        this.narr.style.width = `${box.w}px`;
+        if (ex.parentElement !== this.narrBody) this.narrBody.append(ex);
+        const band = bandBox({ w: SW, h: SH }, 0);
+        const cols = bandColumns(band.w);
+        this.cols = cols;
+        this.narr.style.left = `${band.x}px`;
+        this.narr.style.width = `${band.w}px`;
+        this.narr.style.setProperty('--text-w', `${cols.text.w}px`);
+        this.narr.style.setProperty('--piece-w', `${pieceWidth(cols, band.w)}px`);
+        this.narr.classList.toggle('stacked', !cols.piece);
+        // what the band needs besides its body: the controls row and the padding
+        const chrome = () => this.narr.offsetHeight - this.narrBody.offsetHeight;
+        // the largest font whose tallest band leaves the scene at least half the stage
+        for (const f of FONT_STEPS) {
+          this.font = f;
+          this.narr.className = `tut-narr ${f}${cols.piece ? '' : ' stacked'}`.trim();
+          this.measure.className = `tut-narr tut-narr-measure ${f}`.trim();
+          this.bandMax = Math.ceil(chrome() + Math.max(...this.bodyHeights(cols, band.w)));
+          if (this.bandMax <= SH * 0.5) break;
+        }
+        this.bandTop = Math.round(SH - BAND.margin - this.bandMax);
+        this.narr.style.top = `${this.bandTop}px`;
       }
-      this.main.style.setProperty('--col-w', `${boxWidth(SW)}px`);
     }
     const ui = (sel: string): Box | null => {
       const el = stageEl.querySelector<HTMLElement>(sel);
@@ -432,47 +476,41 @@ export class TutorialScreen implements Screen {
       const r = el.getBoundingClientRect();
       return r.width && r.height ? this.rel(r, base) : null;
     };
-    const shots = ui('.stage-controls');
-    const caption = ui('.stage-caption');
-    let inset: Insets;
+    const hasHud = !this.current().wide;
+    let inset: Insets | Insets[];
     let keepOut: Box[] = [];
-    const ex = this.extraBox;
     if (narrow) {
-      ex.style.left = ex.style.top = ex.style.width = '';
-      ex.classList.remove('in-column', 'above-pill');
+      this.band = null;
       // the step counter's row, even before its first beat
-      const hud = ui('.stage-hud') ?? (this.current().wide ? null : { x: 8, y: 8, w: 120, h: 28 });
-      inset = phoneInset({ w: SW, h: SH }, [hud, shots], [pill, caption]);
+      const hud = ui('.stage-hud') ?? (hasHud ? { x: 8, y: 8, w: 120, h: 28 } : null);
+      inset = round(phoneInset({ w: SW, h: SH }, [hud, ui('.stage-controls')], [ui('.stage-caption')]));
     } else {
-      const box = textBox({ w: SW, h: SH }, this.boxH);
-      let card: { h: number; hWide: number } | null = null;
-      if (!ex.hidden) {
-        ex.style.left = '0px';
-        ex.style.top = '0px';
-        ex.style.width = `${box.w}px`;
-        const hNarrow = ex.offsetHeight;
-        ex.style.width = `${cardWidth({ w: SW }, box)}px`;
-        card = { h: hNarrow, hWide: ex.offsetHeight };
-      }
+      // the tallest band: the scene keeps above it on every page
+      const band: Box = { x: BAND.margin, y: this.bandTop, w: SW - 2 * BAND.margin, h: this.bandMax };
+      this.band = band;
       const code = this.codeBox.hidden ? null : this.rel(this.codeBox.getBoundingClientRect(), base);
-      const L = deskLayout({ stage: { w: SW, h: SH }, box, code, pill, card, shots, caption });
-      if (L.card) {
-        ex.style.left = `${L.card.x}px`;
-        ex.style.top = `${L.card.y}px`;
-        ex.style.width = `${L.card.w}px`;
-        ex.classList.toggle('in-column', L.cardInColumn);
-        ex.classList.toggle('above-pill', !L.cardInColumn);
-      }
-      inset = L.inset;
-      // stage labels keep off the text box and the cards (a long walk scrolls past them)
-      keepOut = [box, ...(L.card ? [L.card] : []), ...(code ? [code] : [])].map((b) => ({ x: b.x - 4, y: b.y - 4, w: b.w + 8, h: b.h + 8 }));
+      // the shot buttons and the caption: along the top edge, between the step counter and the code card
+      const side = Math.max(code ? SW - code.x : 0, hasHud ? BAND.frameGap + HUD_ROOM.w : 0) + BAND.frameGap;
+      const strip = topStrip({ w: SW }, side);
+      stageEl.style.setProperty('--strip-x', `${strip.x}px`);
+      const shots = ui('.stage-controls');
+      stageEl.style.setProperty('--cap-top', `${shots ? Math.round(shots.y + shots.h + 6) : BAND.frameGap}px`);
+      const caption = ui('.stage-caption');
+      const hud: Box | null = hasHud ? { x: BAND.frameGap, y: BAND.frameGap, w: HUD_ROOM.w, h: HUD_ROOM.h } : null;
+      const top = [hud, code, shots, caption].filter((b): b is Box => !!b);
+      const frames = sceneFrames({ w: SW, h: SH }, band.y, top);
+      // no centred frame fits (a very small stage): under everything at the top, above the tallest band
+      inset = frames.length
+        ? frames
+        : round({ top: Math.max(BAND.frameGap, ...top.map((b) => b.y + b.h + BAND.frameGap)), right: BAND.frameGap, bottom: SH - band.y + BAND.frameGap, left: BAND.frameGap });
+      // stage labels keep off the band, the cards and the strip (a long walk scrolls past them)
+      keepOut = [band, ...top].map((b) => ({ x: b.x - 4, y: b.y - 4, w: b.w + 8, h: b.h + 8 }));
     }
-    inset = round(inset);
-    const kept = JSON.stringify(keepOut.map((b) => [b.x, b.y, b.w, b.h].map(Math.round)));
-    if (!sameInset(this.inset, inset) || kept !== this.keptKey) {
+    const k = JSON.stringify([inset, keepOut.map((b) => [b.x, b.y, b.w, b.h].map(Math.round))]);
+    if (k !== this.insetKey) {
+      this.insetKey = k;
       this.inset = inset;
       this.keepOut = keepOut;
-      this.keptKey = kept;
       this.app.stage.setInset(inset, keepOut);
     }
   }
@@ -483,37 +521,35 @@ export class TutorialScreen implements Screen {
     return focusOf(this.current(), this.shot);
   }
 
-  /** Where a focus target is, in px of the main box. */
-  private targetRect(f: Focus, base: DOMRect): Box | null {
+  /** The pieces of a focus target, in px of the main box: one ring goes around each. */
+  private targetPieces(f: Focus, base: DOMRect): Box[] {
     const dom = (el: Element | null): Box | null => {
       if (!el || (el as HTMLElement).hidden) return null;
       const r = el.getBoundingClientRect();
       return r.width && r.height ? this.rel(r, base) : null;
     };
+    const some = (b: Box | null): Box[] => (b ? [b] : []);
     switch (f) {
       case 'code':
-        return dom(this.codeBox);
-      case 'codeLine': {
-        const lit = [...this.codeBox.querySelectorAll('.code-line.run')].map((el) => dom(el)).filter((b): b is Box => !!b);
-        if (!lit.length) return null;
-        const x0 = Math.min(...lit.map((b) => b.x));
-        const y0 = Math.min(...lit.map((b) => b.y));
-        const x1 = Math.max(...lit.map((b) => b.x + b.w));
-        const y1 = Math.max(...lit.map((b) => b.y + b.h));
-        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-      }
+        return some(dom(this.codeBox));
+      case 'codeLine':
+        return linePieces([...this.codeBox.querySelectorAll('.code-line.run')].map((el) => dom(el)).filter((b): b is Box => !!b));
       case 'hud': {
         const hud = this.stageBox.querySelector<HTMLElement>('.stage-hud');
-        return hud && hud.childNodes.length ? dom(hud) : null;
+        return hud && hud.childNodes.length ? some(dom(hud)) : [];
       }
       case 'extra':
-        return dom(this.extraBox);
+        return some(dom(this.extraBox));
       default: {
-        if (!STAGE_FOCUS.includes(f)) return null;
-        const r = this.app.stage.focusRect(f as StageTarget);
-        if (!r) return null;
+        if (!STAGE_FOCUS.includes(f)) return [];
         const s = this.stageBox.getBoundingClientRect();
-        return { x: r.x + s.left - base.left, y: r.y + s.top - base.top, w: r.w, h: r.h };
+        // on a wide screen the scene is above the band: nothing of it shows under the band
+        const seen: Box = { x: 0, y: 0, w: s.width, h: this.band ? this.band.y : s.height };
+        return this.app.stage
+          .focusRects(f as StageTarget)
+          .map((r) => clip(r, seen))
+          .filter((r): r is Box => !!r && r.w >= 2 && r.h >= 2)
+          .map((r) => ({ x: r.x + s.left - base.left, y: r.y + s.top - base.top, w: r.w, h: r.h }));
       }
     }
   }
@@ -521,21 +557,30 @@ export class TutorialScreen implements Screen {
   /** Every frame: the rings follow their targets; the step button follows the stage. */
   private frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
-    const base = this.main.getBoundingClientRect();
-    this.ringLayer.paint(
-      this.targets().map((f) => {
-        const r = this.targetRect(f, base);
-        return { target: f, box: r ? ringBox(r, f === 'codeLine' ? 3 : 6) : null };
-      }),
-    );
+    this.paintRings();
     this.paintStep();
   };
 
+  /** One ring per piece of every target the shot names. */
+  private paintRings(): void {
+    if (!this.main.isConnected) return;
+    const base = this.main.getBoundingClientRect();
+    const rings: RingSpec[] = this.targets().flatMap((f): RingSpec[] => {
+      const pieces = this.targetPieces(f, base);
+      const pad = f === 'codeLine' ? 4 : f === 'code' ? 7 : 6;
+      return pieces.length ? pieces.map((piece) => ({ target: f, piece, box: ringBox(piece, pad) })) : [{ target: f, piece: null, box: null }];
+    });
+    this.ringLayer.paint(rings);
+  }
+
   // ------------------------------------------------------------ extras
 
-  /** Type the steps left and watch the stairs of the page's run change (no judging here). */
-  private tryBox(withChips: boolean): HTMLElement | null {
-    const p = this.current();
+  /**
+   * Type the steps left and watch the stairs of the page's run change (no judging here). The row looks like the
+   * level screen's: "남은 계단 수 = [ 예: n ]", the status right under it, the chips under that (page 13), and the
+   * integer note small and quiet. `live`: the page on screen (false: a copy to measure).
+   */
+  private tryBox(p: TutPage, withChips: boolean, live: boolean): HTMLElement | null {
     const sc = p.shots[0]!.scene;
     if (sc.k !== 'run') return null;
     const prog = program(sc.prog);
@@ -549,48 +594,51 @@ export class TutorialScreen implements Screen {
       autocapitalize: 'off',
       autocorrect: 'off',
       spellcheck: 'false',
-      placeholder: withChips ? t('typeHere') : t('tryPlaceholder'),
+      placeholder: t('tryPlaceholder'),
       'aria-label': t('tryVLabel'),
     });
-    input.value = this.tryText;
-    const update = () => {
-      this.tryText = input.value;
-      if (!input.value.trim()) {
-        status.textContent = t('tryVHint');
-        status.className = 'try-status';
-        this.custom = null;
-        this.showShot(0);
-        return;
-      }
-      try {
-        const V = parseV(prog, input.value);
-        status.textContent = t('typeOk', { len: proofLength(prog, input.value, '') });
-        status.className = 'try-status ok';
-        this.custom = { scene: runScene(prog, s0, V, 30), caption: t('echoV', { v: input.value.trim().replace(/-/g, '−') }) };
-        this.showShot(0);
-      } catch (e) {
-        if (!(e instanceof ExprError)) throw e;
-        status.textContent = t('tryVBad', { err: errorText(e) });
-        status.className = 'try-status bad';
-      }
-    };
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    input.addEventListener('input', () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(update, 160);
-    });
-    const field = h('label', { class: 'try-field' }, h('span', { class: 'field-name' }, t('tryVLabel')), input);
+    if (live) {
+      input.value = this.tryText;
+      const update = () => {
+        this.tryText = input.value;
+        if (!input.value.trim()) {
+          status.textContent = t('tryVHint');
+          status.className = 'try-status';
+          this.custom = null;
+          this.showShot(0);
+          return;
+        }
+        try {
+          const V = parseV(prog, input.value);
+          status.textContent = t('typeOk', { len: proofLength(prog, input.value, '') });
+          status.className = 'try-status ok';
+          this.custom = { scene: runScene(prog, s0, V, 30), caption: t('echoV', { v: input.value.trim().replace(/-/g, '−') }) };
+          this.showShot(0);
+        } catch (e) {
+          if (!(e instanceof ExprError)) throw e;
+          status.textContent = t('tryVBad', { err: errorText(e) });
+          status.className = 'try-status bad';
+        }
+      };
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      input.addEventListener('input', () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(update, 160);
+      });
+    }
+    const field = h('label', { class: 'field inline try-field' }, h('span', { class: 'field-name' }, t('tryVLabel')), input);
     const chips = withChips ? chipBar({ vars: prog.vars, cond: false, tuple: false, target: () => input, example: false }) : null;
     // Page 13 also carries the integer rules that the level screen no longer repeats.
     return h('div', { class: 'try' }, field, status, chips, withChips ? h('p', { class: 'tut-note int-note' }, t('intDomain')) : null);
   }
 
-  private extra(p: TutPage): HTMLElement | null {
+  /** The piece of a page. `live`: the page on screen (false: a copy to measure, with no effect on the screen). */
+  private extra(p: TutPage, live: boolean): HTMLElement | null {
     switch (p.extra) {
       case 'tryV':
-        return this.tryBox(false);
+        return this.tryBox(p, false, live);
       case 'chips':
-        return this.tryBox(true);
+        return this.tryBox(p, true, live);
       case 'verdicts': {
         // The level screen's step-1 card, with the verdict of the shot on the stage lit up.
         const btn = (cls: string, label: string, shot?: number) => h('span', { class: `verdict ${cls} demo${shot === this.shot ? ' hl' : ''}`, 'data-hl-shot': shot ?? null }, label);
@@ -603,11 +651,17 @@ export class TutorialScreen implements Screen {
         );
       }
       case 'stepper': {
-        const btn = h('button', { type: 'button', class: 'btn primary step-btn', 'data-role': 'step', onclick: () => this.stepPress() }, t('stepOne')) as HTMLButtonElement;
-        const status = h('p', { class: 'step-status', 'data-role': 'step-status', 'aria-live': 'polite' });
-        this.stepBtn = btn;
-        this.stepStatus = status;
-        if (this.beats) status.replaceChildren(...rich(this.beats[0]!.status[lang()]));
+        const btn = h('button', { type: 'button', class: 'btn primary step-btn', 'data-role': live ? 'step' : null, onclick: () => this.stepPress() }, t('stepOne')) as HTMLButtonElement;
+        const status = h('p', { class: 'step-status', 'data-role': live ? 'step-status' : null, 'aria-live': 'polite' });
+        // the longest status line, so the card is as tall as it gets
+        const sc = p.shots[0]!.scene;
+        const beats = sc.k === 'run' ? stepBeats(program(sc.prog), sceneStart(sc)) : [];
+        const longest = [...beats].sort((a, b) => b.status[lang()].length - a.status[lang()].length)[0];
+        if (live) {
+          this.stepBtn = btn;
+          this.stepStatus = status;
+          if (this.beats) status.replaceChildren(...rich(this.beats[0]!.status[lang()]));
+        } else if (longest) status.replaceChildren(...rich(longest.status[lang()]));
         return h('div', { class: 'stepper' }, btn, status);
       }
       case 'legend': {

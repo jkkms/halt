@@ -1,16 +1,18 @@
-// The level screen's guide (SPEC_guide): short tours over the real screen. Each step puts an amber ring around a
-// real part of the level screen (scrolled into view first) and its text in the tutorial's still text box, which
-// stays in one place for the whole tour: over the stage's lower left on a wide screen (the scene is framed above it
-// and the stage caption hides), a sheet fixed at the bottom of the viewport on the stacked layout. The page stays
-// usable under it. Each tour shows once (the store's `guidesSeen`); "?" replays them.
+// The level screen's guide (SPEC_guide, SPEC_v0.7): short tours over the real screen. Each step puts amber rings
+// around real parts of the level screen (scrolled into view first; one ring per part) and its text in a band like
+// the tutorial's: a wide band along the bottom of the stage column on a wide screen (the scene is framed above it
+// and the stage caption hides), a sheet near the bottom of the viewport on the stacked layout. The band's top edge,
+// left and width stay put for the whole tour; its height follows the step's text; the tour's title and controls sit
+// in a row at its top. The page stays usable under it. Each tour shows once (the store's `guidesSeen`); "?" replays
+// them.
 import type { Level } from '../core/levels.ts';
 import { dueTours, replayTours, tourFits, tourFor, withSeen, type GuideState, type GuideTarget, type Tour, type TourId } from '../core/tours.ts';
 import type { App } from './app.ts';
 import { h } from './dom.ts';
-import { FONT_STEPS, richNodes, RingLayer, tallestText } from './guide.ts';
+import { FONT_STEPS, narrationNodes, RingLayer, tallestText, type RingSpec } from './guide.ts';
 import { lang, t } from './i18n.ts';
 import type { Insets, Rect } from './stageTypes.ts';
-import { clip, deskMaxHeight, deskSpots, deskWidth, phoneSheet, pickSpot, revealDelta, sceneInset, sheetMaxHeight, stageFree, union } from './tourLayout.ts';
+import { clip, deskBox, deskMaxHeight, deskTextWidth, phoneSheet, revealDelta, sceneInset, sheetMaxHeight, stageFree, union } from './tourLayout.ts';
 import { ringBox, type Box } from './tutLayout.ts';
 
 /** The stacked level screen (stage on top, the panel under it, the page scrolls): matches the CSS. */
@@ -23,6 +25,9 @@ export interface GuideHost {
   /** Which step-2 form is open and whether a check of the steps left failed. */
   state(): Pick<GuideState, 'form' | 'failed'>;
 }
+
+/** Targets made of separate parts, each with a ring of its own. */
+const PIECEWISE: GuideTarget[] = ['topbar', 'chips'];
 
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -43,18 +48,13 @@ export class LevelGuide {
   private ringsEl = h('div', { class: 'guide-rings', 'aria-hidden': 'true' });
   private rings = new RingLayer(this.ringsEl);
   private head = h('p', { class: 'guide-head' });
-  private text = h('p', { class: 'tut-narr-text guide-text', 'aria-live': 'polite' });
+  private text = h('div', { class: 'tut-narr-text guide-text', 'aria-live': 'polite' });
   private nav = h('nav', { class: 'guide-nav' });
-  private box = h('section', { class: 'guide-box', 'data-role': 'guide', role: 'region' }, this.head, this.text, this.nav);
-  /** A hidden copy of the box, to measure the tour's longest text. */
-  private mText = h('p', { class: 'tut-narr-text guide-text' });
-  private measure = h(
-    'div',
-    { class: 'guide-box guide-measure', 'aria-hidden': 'true' },
-    h('p', { class: 'guide-head' }, '·'),
-    this.mText,
-    h('nav', { class: 'guide-nav' }, h('button', { type: 'button', class: 'btn small ghost g-prev', tabindex: '-1' }, '←'), h('span', { class: 'g-count' }, '0 / 0'), h('button', { type: 'button', class: 'btn small primary g-next', tabindex: '-1' }, '→')),
-  );
+  private box = h('section', { class: 'guide-box', 'data-role': 'guide', role: 'region' }, h('div', { class: 'guide-top' }, this.head, this.nav), this.text);
+  /** A hidden copy of the box, to measure the tour's texts. */
+  private mText = h('div', { class: 'tut-narr-text guide-text' });
+  private mNav = h('nav', { class: 'guide-nav' });
+  private measure = h('div', { class: 'guide-box guide-measure', 'aria-hidden': 'true' }, h('div', { class: 'guide-top' }, h('p', { class: 'guide-head' }, '·'), this.mNav), this.mText);
   private tour: Tour | null = null;
   private step = 0;
   /** Tours asked for by "show this screen's guide again", in order. */
@@ -236,7 +236,7 @@ export class LevelGuide {
     this.head.textContent = tour.title[L];
     this.box.setAttribute('aria-label', tour.title[L]);
     this.box.dataset.step = String(this.step + 1);
-    this.text.replaceChildren(...richNodes(tour.steps[this.step]!.text[L]));
+    this.text.replaceChildren(...narrationNodes(tour.steps[this.step]!.text[L]));
     this.text.classList.remove('fade');
     void this.text.offsetWidth;
     this.text.classList.add('fade');
@@ -247,7 +247,7 @@ export class LevelGuide {
       ? h('button', { type: 'button', class: 'btn small primary g-next', 'data-role': 'guide-done', onclick: () => this.finish() }, t('guideGotIt'))
       : h('button', { type: 'button', class: 'btn small primary g-next', 'data-role': 'guide-next', onclick: () => this.go(this.step + 1) }, `${t('nextPage')} →`);
     const skip = last ? null : h('button', { type: 'button', class: 'skip g-skip', 'data-role': 'guide-skip', onclick: () => this.finish() }, t('skip'));
-    this.nav.replaceChildren(prev, count, next, ...(skip ? [skip] : []));
+    this.nav.replaceChildren(...(skip ? [skip] : []), prev, count, next);
     if (reveal) this.revealSoon();
   }
 
@@ -257,11 +257,24 @@ export class LevelGuide {
     return this.host.root.querySelector<HTMLElement>('.stage-wrap');
   }
 
-  /** Measure the tour's longest text at this width; the font steps down until it fits `max`. */
+  /**
+   * Measure the tour's tallest step at this width (title, controls and text); the font steps down until it fits
+   * `max`. The controls are measured wider than any step shows them (Skip, Back, the count, Next and Got it).
+   */
   private fit(width: number, max: number): number {
     const L = lang();
-    const texts = this.tour!.steps.map((s) => s.text[L]);
-    this.measure.querySelector('.guide-head')!.textContent = this.tour!.title[L];
+    const tour = this.tour!;
+    const texts = tour.steps.map((s) => s.text[L]);
+    this.measure.querySelector('.guide-head')!.textContent = tour.title[L];
+    const n = tour.steps.length;
+    // wider than any step's controls (Next and Got it both in): the row decision below holds on every step
+    this.mNav.replaceChildren(
+      h('button', { type: 'button', class: 'skip g-skip', tabindex: '-1' }, t('skip')),
+      h('button', { type: 'button', class: 'btn small ghost g-prev', tabindex: '-1' }, `← ${t('prevPage')}`),
+      h('span', { class: 'g-count' }, t('pageOf', { i: n, n })),
+      h('button', { type: 'button', class: 'btn small primary g-next', tabindex: '-1' }, `${t('nextPage')} →`),
+      h('button', { type: 'button', class: 'btn small primary g-next', tabindex: '-1' }, t('guideGotIt')),
+    );
     let height = 0;
     let font = '';
     for (const f of FONT_STEPS) {
@@ -270,11 +283,18 @@ export class LevelGuide {
       height = tallestText(this.measure, this.mText, width, texts);
       if (height <= max) break;
     }
-    this.box.className = `guide-box ${font}`.trim();
-    return Math.min(height, max);
+    // the title and the controls share a row only when the widest controls fit beside the title on every step;
+    // else the title has a row of its own on every step (the text never moves between steps)
+    const top = this.measure.querySelector<HTMLElement>('.guide-top')!;
+    const stack = top.offsetHeight > this.mNav.offsetHeight + 20;
+    this.box.className = `guide-box ${font}${stack ? ' stack-top' : ''}`.trim();
+    return height;
   }
 
-  /** Place the box once per tour, viewport size and language; it does not move between steps. */
+  /**
+   * Place the box once per tour, viewport size and language: its top edge, left and width do not move between steps
+   * (its height follows the step's text); the scene keeps above the tallest step's box.
+   */
   private layout(): void {
     const stage = this.stageEl();
     if (!stage || !this.tour) return;
@@ -290,35 +310,32 @@ export class LevelGuide {
     const b = this.box.style;
     let inset: Insets | undefined;
     let keepOut: Rect[] | undefined;
+    b.height = '';
+    b.bottom = 'auto';
     if (stacked) {
-      const height = this.fit(vw - 16, sheetMaxHeight(vh));
-      const sheet = phoneSheet({ w: vw, h: vh }, height);
+      const width = vw - 2 * 8;
+      this.box.style.setProperty('--text-w', `${width}px`);
+      this.measure.style.setProperty('--text-w', `${width}px`);
+      const tallest = this.fit(width, sheetMaxHeight(vh));
+      const sheet = phoneSheet({ w: vw, h: vh }, tallest);
       b.left = `${sheet.x}px`;
       b.width = `${sheet.w}px`;
-      b.height = `${sheet.h}px`;
-      b.top = 'auto';
-      b.bottom = `${vh - sheet.y - sheet.h}px`;
+      b.top = `${sheet.y}px`;
       this.boxRect = sheet;
-      root.style.setProperty('--guide-pad', `${Math.ceil(height + 16)}px`);
+      root.style.setProperty('--guide-pad', `${Math.ceil(tallest + 16)}px`);
       root.classList.add('guide-open', 'guide-sheet');
       root.classList.remove('guide-desk');
     } else {
       const st = { w: sr.width, h: sr.height };
-      const width = deskWidth(st.w);
-      const height = this.fit(width, deskMaxHeight(st.h));
-      // keep off the stage's own buttons (the sample runs) when the tour points at the stage; the scene itself is
-      // framed around the box
-      const targets = this.tour.steps.flatMap((s) => s.targets);
-      const avoid = (targets.includes('stage') ? [...stage.querySelectorAll('.stage-controls')] : [])
-        .map(rectOf)
-        .filter((r): r is Box => !!r)
-        .map((r) => ({ x: r.x - sr.left, y: r.y - sr.top, w: r.w, h: r.h }));
-      const spot = pickSpot(deskSpots(st, { w: width, h: height }), avoid);
+      const bandW = Math.max(0, st.w - 32);
+      const textW = deskTextWidth(bandW);
+      this.box.style.setProperty('--text-w', `${textW}px`);
+      this.measure.style.setProperty('--text-w', `${textW}px`);
+      const tallest = this.fit(bandW, deskMaxHeight(st.h));
+      const spot = deskBox(st, tallest);
       b.left = `${sr.left + spot.x}px`;
       b.top = `${sr.top + spot.y}px`;
-      b.bottom = 'auto';
       b.width = `${spot.w}px`;
-      b.height = `${spot.h}px`;
       this.boxRect = { x: sr.left + spot.x, y: sr.top + spot.y, w: spot.w, h: spot.h };
       inset = sceneInset(st, spot);
       keepOut = [{ x: spot.x - 4, y: spot.y - 4, w: spot.w + 8, h: spot.h + 8 }];
@@ -407,13 +424,18 @@ export class LevelGuide {
     const step = this.tour?.steps[this.step];
     if (!step) return this.rings.paint([]);
     this.rings.paint(
-      step.targets.map((tg) => {
+      step.targets.flatMap((tg): RingSpec[] => {
         const els = this.elements(tg);
-        const r = union(els.map(rectOf));
-        if (!r || !els[0]) return { target: tg, box: null };
-        // the stage fills its side of the screen: its ring goes just inside it
-        const ring = ringBox(r, tg === 'stage' ? -3 : tg === 'inputs' || tg === 'facts' ? 4 : 6);
-        return { target: tg, box: clip(ring, this.area(els[0])) };
+        if (!els[0]) return [{ target: tg, box: null }];
+        // the judge badge and "?", the buttons and the grey help under them: a ring each (SPEC_v0.7 §C)
+        const parts = PIECEWISE.includes(tg) ? els.map((el) => [el]) : [els];
+        return parts.map((group) => {
+          const piece = union(group.map(rectOf));
+          if (!piece) return { target: tg, box: null };
+          // the stage fills its side of the screen: its ring goes just inside it
+          const ring = ringBox(piece, tg === 'stage' ? -3 : tg === 'inputs' || tg === 'facts' ? 4 : PIECEWISE.includes(tg) ? 4 : 6);
+          return { target: tg, piece, box: clip(ring, this.area(group[0]!)) };
+        });
       }),
     );
   }
