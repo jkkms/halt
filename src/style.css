@@ -460,7 +460,7 @@ var {
   justify-content: center;
   gap: 12px;
   width: 100%;
-  max-width: 880px;
+  max-width: 1040px;
 }
 
 .menu-btn {
@@ -2211,6 +2211,451 @@ var {
   color: var(--ink);
 }
 
+/* ---------------------------------------------------------------- rush (SPEC_rush) */
+/* One column in the middle of the dusk: the score line, the clock, the card, the two answers, then the stage that
+   runs the card once it is answered (behind a curtain until then). */
+
+.rush-main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 18px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rush-panel {
+  padding: 26px 26px 22px;
+  border-radius: 18px;
+  background: rgba(20, 27, 64, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.rush-title {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 42px);
+  font-weight: 840;
+  letter-spacing: -0.025em;
+  color: var(--amber-2);
+  word-break: keep-all;
+}
+
+.rush-lead {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 550;
+  word-break: keep-all;
+}
+
+.rush-rules {
+  margin: 4px 0 6px;
+  padding: 12px 16px 12px 34px;
+  max-width: 600px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: left;
+  color: var(--on-night-2);
+  font-size: 14.5px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.rush-rules li + li {
+  margin-top: 4px;
+}
+
+.rush-modes {
+  max-width: 600px;
+}
+
+.rush-bests {
+  margin: 0;
+  font-size: 14px;
+  color: var(--on-night-2);
+}
+
+/* the score line */
+.rush-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  font-size: 14.5px;
+  color: var(--on-night-2);
+}
+
+.rush-score b {
+  color: var(--on-night);
+  font-size: 20px;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+}
+
+.rush-lives {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* a life is a lamp: lit amber, or a dark empty ring once it is gone */
+.life {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+}
+
+.life.on {
+  border-color: var(--amber);
+  background: radial-gradient(circle at 40% 35%, var(--amber-2), var(--amber) 70%);
+  box-shadow: 0 0 10px rgba(242, 165, 65, 0.7);
+}
+
+.rush-streak.hot {
+  color: var(--amber-2);
+  font-weight: 760;
+}
+
+.rush-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the clock: a bar that empties in 15 seconds, red in the last 5 */
+.rush-timer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rush-timer {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rush-timer-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: var(--amber);
+  transition:
+    transform 0.1s linear,
+    background 0.2s ease;
+}
+
+.rush-timer.low .rush-timer-fill {
+  background: var(--ember);
+}
+
+.rush-timer-text {
+  min-width: 3.2em;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-night-2);
+}
+
+/* the card: the code big and centred */
+.rush-card {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--sand-3);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+.rush-code-wrap {
+  padding: 22px 16px;
+  border-radius: 12px;
+  background: #221b30;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.rush-code-wrap .code {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  background: none;
+  border-radius: 0;
+  overflow: visible;
+  font-size: clamp(17px, 2.2vw, 25px);
+  line-height: 1.5;
+}
+
+.rush-inputs {
+  margin: 10px 2px 0;
+  text-align: center;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.rush-inputs code {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* the two answers */
+.rush-q {
+  margin: 0 0 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 10px;
+  font-weight: 760;
+  font-size: 16px;
+}
+
+.rush-q small {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--on-night-2);
+}
+
+.rush-verdicts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.verdict.rush-verdict {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 64px;
+  font-size: 19px;
+  border-radius: 14px;
+}
+
+.rush-verdict kbd,
+.rush-next kbd {
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+/* after the answer */
+.rush-feedback {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: var(--ink);
+  background: var(--good-soft);
+  border: 1px solid rgba(44, 122, 86, 0.35);
+}
+
+.rush-feedback.wrong {
+  background: var(--bad-soft);
+  border-color: rgba(194, 65, 47, 0.35);
+}
+
+.rush-result {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-size: 17px;
+}
+
+.rush-mark {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--good);
+}
+
+.rush-feedback.wrong .rush-mark {
+  color: var(--bad);
+}
+
+.rush-pts {
+  font-weight: 800;
+  color: var(--good);
+  font-variant-numeric: tabular-nums;
+}
+
+.rush-truth {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.rush-why {
+  margin: 8px 0 0;
+  font-size: 15.5px;
+  line-height: 1.55;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.rush-why code {
+  white-space: nowrap;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgba(36, 26, 18, 0.08);
+  font-size: 0.94em;
+}
+
+.rush-next-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* the next button fills up while the next card comes by itself */
+.rush-next {
+  position: relative;
+  overflow: hidden;
+}
+
+.rush-auto {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--amber-ink);
+  opacity: 0.35;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition-property: transform;
+  transition-timing-function: linear;
+}
+
+.rush-auto.go {
+  transform: scaleX(1);
+}
+
+/* the stage: the walker runs the card's first sample after the answer */
+.rush-stage-wrap {
+  position: relative;
+  height: clamp(220px, 34dvh, 320px);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rush-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.rush-stage.hidden-run {
+  visibility: hidden;
+}
+
+.rush-curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--on-night-2);
+  background:
+    radial-gradient(260px 90px at 50% 100%, rgba(255, 196, 120, 0.22), transparent 70%),
+    linear-gradient(180deg, #0a1130 0%, #17204b 45%, #353166 100%);
+  word-break: keep-all;
+}
+
+.rush-curtain p {
+  margin: 0;
+}
+
+.rush-curtain-mark {
+  width: 46px;
+  height: 37px;
+  opacity: 0.85;
+}
+
+/* the end */
+.rush-end:focus {
+  outline: none;
+}
+
+.rush-final {
+  margin: 0;
+  font-size: clamp(36px, 4.4vw, 54px);
+  font-weight: 860;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rush-bonus,
+.rush-best.new {
+  margin: 0;
+  font-weight: 760;
+  color: var(--amber-2);
+}
+
+.rush-stats,
+.rush-best {
+  margin: 0;
+  color: var(--on-night-2);
+}
+
+.rush-share {
+  margin: 6px 0 0;
+  max-width: 100%;
+}
+
+.rush-share code {
+  display: inline-block;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.rush-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rush-copy .btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--on-night);
+}
+
+.rush-end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.rush-end-actions .btn.ghost {
+  color: var(--on-night);
+}
+
 /* ---------------------------------------------------------------- narrow screens */
 
 @media (max-width: 900px) {
@@ -2292,11 +2737,65 @@ var {
   .menu-btn {
     flex: 0 0 auto;
     max-width: none;
-    padding: 11px 16px;
+    padding: 8px 16px;
   }
 
   .menu-label {
+    font-size: 16.5px;
+  }
+
+  .menu-sub {
+    font-size: 12.5px;
+  }
+
+  .rush-main {
+    padding: 12px 16px 22px;
+    gap: 10px;
+  }
+
+  .rush-panel {
+    padding: 20px 16px 18px;
+  }
+
+  .rush-rules {
+    padding: 10px 12px 10px 28px;
+    font-size: 14px;
+  }
+
+  .rush-hud {
+    gap: 6px 12px;
+    font-size: 13.5px;
+  }
+
+  .rush-score b {
+    font-size: 18px;
+  }
+
+  .rush-card {
+    padding: 10px;
+  }
+
+  .rush-code-wrap {
+    padding: 16px 10px;
+  }
+
+  .verdict.rush-verdict {
+    min-height: 58px;
     font-size: 17px;
+  }
+
+  .rush-verdict kbd,
+  .rush-next kbd,
+  .rush-q small {
+    display: none;
+  }
+
+  .rush-truth {
+    margin-left: 0;
+  }
+
+  .rush-stage-wrap {
+    height: 240px;
   }
 
   .page {

@@ -51,6 +51,7 @@ export class TitleScreen implements Screen {
           btn(t('menuTutorial'), '#/tutorial', newcomer ? 'primary' : '', newcomer ? t('startHere') : undefined),
           btn(t('menuLevels'), '#/levels', newcomer ? '' : 'primary', next && !newcomer ? t('menuContinue', { n: next }) : undefined),
           btn(t('menuDaily'), '#/daily', '', `${t('levelN', { n: today })} · ${levelById(today).title[L]}`),
+          btn(t('menuRush'), '#/rush', '', t('menuRushSub')),
         ),
         h(
           'div',

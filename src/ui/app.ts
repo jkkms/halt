@@ -3,6 +3,7 @@
 //   #/tutorial      the tutorial        #/tutorial/3   its page 3
 //   #/intro/9       the intro before level 9 (also #/intro/10, and #/intro/9/2 for its page 2)
 //   #/levels        level select        #/level/7      a level        #/daily   today's level
+//   #/rush          rush mode           #/rush/today   today's rush   #/rush/practice   practice
 import { dailyLevelId, utcDateKey } from '../core/game.ts';
 import type { Judge } from '../core/judge.ts';
 import { LEVELS } from '../core/levels.ts';
@@ -11,6 +12,7 @@ import { isMuted, setMuted, sfx, unlock } from './audio.ts';
 import { h } from './dom.ts';
 import { defaultLang, lang, setLang, t } from './i18n.ts';
 import { LevelScreen } from './level.ts';
+import { RushScreen } from './rush.ts';
 import { SelectScreen } from './select.ts';
 import { StageHost } from './stage.ts';
 import { load, save, type Saved } from './store.ts';
@@ -127,6 +129,7 @@ export class App {
       const level = Number(arg);
       next = new TutorialScreen(this, { k: 'intro', level, returnTo: this.introReturn[level] ?? `#/level/${level}` }, (Number(sub) || 1) - 1);
     } else if (head === 'levels') next = new SelectScreen(this);
+    else if (head === 'rush') next = new RushScreen(this, arg === 'today' || arg === 'practice' ? arg : null);
     else if (levelId !== null) {
       const id = levelId;
       const cached = this.levelCache;
@@ -142,7 +145,7 @@ export class App {
     // Screens with a stage mount it again in shown(); the others leave it paused.
     this.stage.setActive(false);
     this.root.replaceChildren(next.el);
-    document.title = next instanceof LevelScreen ? `Halt? · ${t('levelN', { n: next.levelId })}` : 'Halt?';
+    document.title = next instanceof LevelScreen ? `Halt? · ${t('levelN', { n: next.levelId })}` : next instanceof RushScreen ? `Halt? · ${t('menuRush')}` : 'Halt?';
     window.scrollTo(0, 0);
     next.shown?.();
   }

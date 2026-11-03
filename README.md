@@ -27,7 +27,7 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 목표는 반복문 18개를 하나씩 **판정**하고 **증명**하는 것입니다. 레벨마다 두 단계를 거칩니다.
 
 - **처음 화면**: 가운데에 질문 "이 반복문, 끝나긴 할까?"와 하는 일을 말하는 한 줄이 있고, 그 뒤로 해 질 녘 건물의 계단을
-  사람이 내려갑니다. 아래에는 튜토리얼 · 레벨 · 오늘의 문제 버튼이 한 줄로 있습니다(처음 왔다면 튜토리얼이 강조되고, 휴대폰에서는
+  사람이 내려갑니다. 아래에는 튜토리얼 · 레벨 · 오늘의 문제 · 러시 버튼이 한 줄로 있습니다(처음 왔다면 튜토리얼이 강조되고, 휴대폰에서는
   세로로 쌓입니다). 게임의 목적은 이 README에 길게 적혀 있고, 튜토리얼 1쪽에도 짧게 나옵니다.
 - **무대**: 반복문은 건물 앞 계단을 내려가는 사람입니다. 반복을 한 번 돌 때마다 한 칸 내려가고, 반복이 끝나면 출구로 나갑니다.
   걸음마다 **먼저 반복 조건을 확인**하므로, 처음부터 조건이 거짓이면 0걸음 만에 끝납니다(레벨 2에서 n = −3).
@@ -77,6 +77,25 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 |---|---|
 | ![레벨 1에서 남은 계단 수로 0을 내면 평평한 걸음 반례가 무대에 재생된다](docs/screenshot-level1-cex.png) | ![레벨 10을 (x, y)로 풀면 층과 계단으로 그려진다](docs/screenshot-level10.png) |
 
+### 러시
+
+처음 화면의 **러시**는 판정만 빠르게 연습하는 모드입니다. 짧은 반복문 카드가 한 장씩 나오고, 카드마다 15초 안에
+**끝난다**(← 또는 1)나 **안 끝난다**(→ 또는 2)를 고릅니다. 증명은 쓰지 않습니다. 목숨은 3개이고, 틀리거나 시간이 다 되면 하나를 잃습니다.
+뜻은 레벨과 같습니다. 끝난다 = 허용된 모든 시작값에서 끝남, 안 끝난다 = 영원히 도는 시작값이 하나라도 있음.
+
+- 답하면 ✔/✘, 정답, 그 카드의 이유 한 줄(예: "`x`가 홀수면 10을 건너뛰어요. x = 9: 9, 11, 13, …")이 나오고, 걷는 사람이
+  무대에서 그 카드의 예시 실행을 걷습니다. 답하기 전에는 무대가 가려져 있습니다. 다음 카드는 Enter나 버튼, 또는 몇 초 뒤에 저절로 나옵니다.
+- 점수: 맞히면 `100 + 10 × 남은 초`, 연속으로 맞히면 ×1.25, ×1.5, … 최대 ×2를 곱합니다. 카드를 끝까지 다 풀면 +500.
+- **오늘의 러시**는 UTC 날짜마다 모두 같은 카드 순서이고, 끝나면 카드 내용 없이 결과만 담긴 한 줄을 복사할 수 있습니다
+  (예: `Halt? 러시 2026-11-03 · 1,450점 · ✔✔✘✔✔✔✘✘`). **연습**은 순서가 무작위입니다. 오늘 최고 점수와 연습 최고 점수는 저장됩니다.
+- 카드 36장은 모두 레벨에 없는 새 반복문입니다(러시는 답한 뒤 정답을 보여 주므로 레벨은 넣지 않았습니다). 절반은 끝나고 절반은
+  안 끝나며, 한 곳만 다른데 판정이 갈리는 짝이 많습니다(`x := x / 2`의 조건 `x > 0`과 `x != 1`, 두 변수 바꾸기와 `a := b; b := a`,
+  `&&`와 `||` 등). 쉬운 카드 → 함정이 하나 있는 카드 → 닮은 짝과 두 변수 카드 순서로 나오고, 섞는 것은 같은 단계 안에서만 합니다.
+- 모든 카드의 판정은 `npm test`가 확인합니다. 끝나는 카드는 기준 남은 계단 수(필요하면 난간)가 실제 판정기(Z3)를 통과하고,
+  안 끝나는 카드는 상태가 되풀이되는 시작값이나, 시작값과 Z3가 확인한 바닥 없는 구역이 있습니다. 기준 답은 `test/rushAnswers.ts`에만 있습니다.
+
+![러시: 카드의 코드 while (x != 10) { x := x + 2 }와 입력 조건 x ≤ 10이 가운데 크게 나오고, 답한 뒤 맞았다는 표시, 정답 “안 끝난다”, 이유 한 줄이 보이며, 무대에서는 걷는 사람이 x = 9부터 끝없이 내려간다](docs/screenshot-rush.png)
+
 ### 개념 ↔ 게임
 
 | 개념 | 게임 |
@@ -113,7 +132,7 @@ KAIST CS424(프로그램 논증) 수강생을 위한 게임입니다. 앞서 나
 ```sh
 npm i
 npm run dev          # http://localhost:5173 (개발 서버가 COOP/COEP 헤더를 보냄)
-npm test             # node --test: 파서, 18개 레벨 전부, 튜토리얼 전용 예제 전부(Z3), / % 의미 비교, 무대·튜토리얼 데이터, 말풍선 자리 (Node 24 권장)
+npm test             # node --test: 파서, 18개 레벨 전부, 튜토리얼 전용 예제 전부(Z3), 러시 카드 36장 전부(Z3·실행), / % 의미 비교, 무대·튜토리얼 데이터, 말풍선 자리 (Node 24 권장)
 npm run build        # dist/ (base './', 하위 경로에서도 동작)
 npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤더 없이 제공 (GitHub Pages 흉내)
 ```
@@ -137,9 +156,9 @@ npm run serve:pages  # dist/를 http://localhost:4174/halt/ 에서 특별한 헤
   보낼 수 있는 Vercel로 옮겼습니다. `coi-serviceworker`는 헤더가 없는 곳(예: 로컬 `serve:pages`)을 위한 예비로 남겨 두었습니다.
 - Z3의 Emscripten 로더와 wasm, 글꼴은 번들하지 않고 `scripts/copy-assets.mjs`가 `public/`에 복사합니다.
   wasm(35 MB)은 gzip(약 8 MB)으로 받아 브라우저에서 풉니다. 불러오는 동안에도 화면은 그대로 쓸 수 있습니다.
-- 진행 상황(최고 별, 튜토리얼을 마쳤는지, 이미 보여 준 소개, 오늘의 문제, 소리 설정)은 `localStorage`에 저장하며, 저장소를 쓸 수 없어도 게임은 돌아갑니다.
-- 코드 구조: `src/core/`(식 언어, 레벨과 튜토리얼 전용 프로그램, 실행기, Z3 검사, 게임 규칙, 무대에 그릴 계단 데이터, 레벨 묶음, 튜토리얼 쪽),
-  `src/ui/`(화면: 처음 화면, 튜토리얼, 레벨 목록, 레벨, 3D 무대), `src/z3/`(브라우저용 Z3 로더), `test/`.
+- 진행 상황(최고 별, 튜토리얼을 마쳤는지, 이미 보여 준 소개, 오늘의 문제, 러시 최고 점수, 소리 설정)은 `localStorage`에 저장하며, 저장소를 쓸 수 없어도 게임은 돌아갑니다.
+- 코드 구조: `src/core/`(식 언어, 레벨과 튜토리얼 전용 프로그램, 실행기, Z3 검사, 게임 규칙, 무대에 그릴 계단 데이터, 레벨 묶음, 튜토리얼 쪽, 러시 카드와 규칙),
+  `src/ui/`(화면: 처음 화면, 튜토리얼, 레벨 목록, 레벨, 러시, 3D 무대), `src/z3/`(브라우저용 Z3 로더), `test/`.
 
 ### 크레디트
 
@@ -175,7 +194,7 @@ Halt? handles both. The judge is the **Z3** SMT solver, running in your browser.
 Your goal is to **judge** and **prove** 18 loops, one by one. Every level has two steps.
 
 - **The title screen**: the question "Will this loop ever end?" and one line on what you do sit in the middle, with the walker
-  going down the stairs of a building at dusk behind them. Below, the tutorial, levels and daily puzzle buttons stand in one row
+  going down the stairs of a building at dusk behind them. Below, the tutorial, levels, daily puzzle and rush buttons stand in one row
   (the tutorial is highlighted on your first visit; on a phone they stack). What the game is for is told at length in this
   README, and briefly on tutorial page 1.
 - **The stage**: a loop is a person walking down the stairs in front of a building. Each time the loop runs once, they go down
@@ -233,6 +252,30 @@ Your goal is to **judge** and **prove** 18 loops, one by one. Every level has tw
 | Level 1: the counterexample to steps left 0 | Level 10: the tuple (x, y) |
 |---|---|
 | ![Level 1: steps left 0 is refuted and the flat step plays on the stage](docs/screenshot-level1-cex.png) | ![Level 10 solved with (x, y), drawn as floors and steps](docs/screenshot-level10.png) |
+
+### Rush
+
+**Rush** on the title screen is a quick drill of the verdict alone. Short loops come one card at a time; for each you have 15
+seconds to pick **It ends** (← or 1) or **It never ends** (→ or 2). No proof. You have 3 lives; a wrong answer or running out
+of time costs one. The verdicts mean what they mean in the levels: ends = from every allowed start; never ends = some allowed
+start runs forever.
+
+- After an answer you see ✔/✘, the right verdict and a one-line reason written for that card (e.g. "An odd `x` jumps over 10.
+  x = 9: 9, 11, 13, …"), while the walker runs that card's sample on the stage. Until you answer, the stage stays covered.
+  The next card comes with Enter or the button, or by itself after a few seconds.
+- Score: a right answer gives `100 + 10 × seconds left`, times ×1.25, ×1.5, … up to ×2 for a streak. Answering every card: +500.
+- **Today's rush** deals the same card order to everyone on a UTC date; at the end you can copy a line with your result but no
+  cards (e.g. `Halt? Rush 2026-11-03 · 1,450 pts · ✔✔✘✔✔✔✘✘`). **Practice** deals a random order. Today's best and the
+  practice best are saved.
+- The 36 cards are all new loops, none of them a level (rush shows the answer after each card, so the levels stay out). About
+  half end and half do not, and many come in lookalike pairs that differ in one small thing but get different verdicts
+  (`x := x / 2` with `x > 0` or `x != 1`, swapping two variables vs. `a := b; b := a`, `&&` vs. `||`, …). Easy cards come
+  first, then cards with one trap, then lookalike pairs and two-variable loops; the shuffle stays within each stage.
+- `npm test` proves every card's verdict: for a card that ends, reference steps left (with a railing where needed) pass the real
+  judge (Z3); for a card that never ends, there is a start whose run repeats a state, or a start with a bottomless zone that Z3
+  accepts. The reference answers live only in `test/rushAnswers.ts`.
+
+![Rush: the card while (x != 10) { x := x + 2 } with the input condition x ≤ 10 big in the middle; after the answer, the right mark, the verdict “It never ends” and a one-line reason, while the walker goes down forever from x = 9 on the stage](docs/screenshot-rush.png)
 
 ### Concept ↔ game
 

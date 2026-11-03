@@ -997,7 +997,7 @@ export function retryButton(): HTMLButtonElement {
   return h('button', { type: 'button', class: 'btn small', 'data-role': 'retry', onclick: () => location.reload() }, t('retry2'));
 }
 
-async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
