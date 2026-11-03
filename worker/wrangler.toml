@@ -14,4 +14,4 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "halt-scores"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "42a5aef6-2e4a-46ff-b5ae-cfa40a3e8414"

@@ -3,7 +3,7 @@
 import type { SubmittedAnswer } from '../core/rush.ts';
 
 /** The score server. The main session fills in the deployed address; VITE_SCORES_API overrides it at build time. */
-export const SCORES_API: string = ((import.meta.env.VITE_SCORES_API as string | undefined) || 'https://halt-scores.REPLACE.workers.dev').replace(/\/+$/, '');
+export const SCORES_API: string = ((import.meta.env.VITE_SCORES_API as string | undefined) || 'https://halt-scores.west-europe-2027.workers.dev').replace(/\/+$/, '');
 
 export interface FameRow {
   rank: number;
