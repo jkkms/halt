@@ -444,7 +444,7 @@ export class TutorialScreen implements Screen {
         this.cols = null;
         this.font = '';
         if (ex.parentElement !== main) this.narr.after(ex);
-        for (const p of ['left', 'top', 'width', '--text-w', '--piece-w']) this.narr.style.removeProperty(p);
+        for (const p of ['left', 'top', 'width', '--text-w', '--piece-w', '--band-h']) this.narr.style.removeProperty(p);
         this.narr.className = 'tut-narr';
       } else {
         if (ex.parentElement !== this.narrBody) this.narrBody.append(ex);
@@ -468,6 +468,8 @@ export class TutorialScreen implements Screen {
         }
         this.bandTop = Math.round(SH - BAND.margin - this.bandMax);
         this.narr.style.top = `${this.bandTop}px`;
+        // the band's slot is the tallest page's; a shorter page sits at the slot's bottom (author, 11/3: "아래 맞춤")
+        this.narr.style.setProperty('--band-h', `${this.bandMax}px`);
       }
     }
     const ui = (sel: string): Box | null => {

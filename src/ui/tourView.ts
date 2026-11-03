@@ -321,6 +321,7 @@ export class LevelGuide {
       b.left = `${sheet.x}px`;
       b.width = `${sheet.w}px`;
       b.top = `${sheet.y}px`;
+      this.box.style.setProperty('--slot-h', `${sheet.h}px`);
       this.boxRect = sheet;
       root.style.setProperty('--guide-pad', `${Math.ceil(tallest + 16)}px`);
       root.classList.add('guide-open', 'guide-sheet');
@@ -336,6 +337,8 @@ export class LevelGuide {
       b.left = `${sr.left + spot.x}px`;
       b.top = `${sr.top + spot.y}px`;
       b.width = `${spot.w}px`;
+      // the slot is the tallest step's; a shorter step sits at its bottom (author, 11/3: "아래 맞춤")
+      this.box.style.setProperty('--slot-h', `${spot.h}px`);
       this.boxRect = { x: sr.left + spot.x, y: sr.top + spot.y, w: spot.w, h: spot.h };
       inset = sceneInset(st, spot);
       keepOut = [{ x: spot.x - 4, y: spot.y - 4, w: spot.w + 8, h: spot.h + 8 }];

@@ -1246,6 +1246,12 @@ var {
 .tut-desk .tut-narr {
   position: absolute;
   padding: 0 20px 14px;
+  /* bottom-aligned in the slot of the tallest page (top = that page's top, --band-h = its height) */
+  transform: translateY(calc(var(--band-h, 100%) - 100%));
+}
+
+.tut-desk .tut-narr.tut-narr-measure {
+  transform: none;
 }
 
 .tut-desk .tut-narr-text {
@@ -1357,6 +1363,16 @@ var {
   display: flex;
   flex-direction: column;
   pointer-events: auto;
+}
+
+/* bottom-aligned in the slot of the tallest step (top = that step's top, --slot-h = its height): the band on wide
+   screens, the bottom sheet on phones */
+.guide-box {
+  transform: translateY(calc(var(--slot-h, 100%) - 100%));
+}
+
+.guide-box.guide-measure {
+  transform: none;
 }
 
 .guide-box.guide-measure {
