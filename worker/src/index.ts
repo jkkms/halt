@@ -3,7 +3,7 @@
 //   POST /nick        {token, nick}               → {nick}                    claim a nickname (or check it is ours)
 //   POST /run/start   {token, nick}               → {runId}                   claims or checks the nickname too
 //   POST /run/finish  {runId, token, answers}     → {score, cards, bestStreak, rank, best, bestRank, newBest, top}
-//   GET  /top?limit=50                            → [{rank, nick, score, cards, at}]   (cached 15 s)
+//   GET  /top?limit=10                            → [{rank, nick, score, cards, at}]   (cached 15 s)
 //   POST /me          {token, nick?}              → {nick, best, rank}
 //
 // The score of a run is recomputed here with the game's own rules; the client's numbers are never trusted.

@@ -114,7 +114,7 @@ console.log(`ok   finish: score ${f1.json.score} (as the game), rank ${f1.json.r
 expect('run/finish the same run again', await req('POST', '/run/finish', { runId: runId1, token: tokenA, answers: first.answers }), 409, 'finished');
 
 // ------------------------------------------------------------ top and me
-const top = await req('GET', '/top?limit=50');
+const top = await req('GET', '/top?limit=10');
 expect('top', top, 200);
 checks++;
 assert.ok(Array.isArray(top.json) && top.json.length <= 50);

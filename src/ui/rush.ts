@@ -47,8 +47,8 @@ export type RushMode = 'play' | 'practice';
 /** The last seconds of a card: the timer turns red. */
 const LOW_MS = 2000;
 /** Rows of the hall of fame shown at first, and after "show more". */
-const FAME_FIRST = 20;
-const FAME_ALL = 50;
+const FAME_FIRST = 10;
+const FAME_ALL = 10; // the hall of fame shows the top 10 (author, 11/3)
 
 const verdictLabel = (v: RushVerdict) => t(v === 'ends' ? 'verdictEnds' : 'verdictNever');
 

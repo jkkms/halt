@@ -76,7 +76,7 @@ describe('score server: abuse limits', () => {
   });
 
   it('the top list is at most 50 long', () => {
-    assert.deepEqual([topLimit(null), topLimit('20'), topLimit('500'), topLimit('-1'), topLimit('abc')], [50, 20, 50, 50, 50]);
+    assert.deepEqual([topLimit(null), topLimit('5'), topLimit('500'), topLimit('-1'), topLimit('abc')], [10, 5, 10, 10, 10]);
   });
 });
 

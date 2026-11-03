@@ -7,7 +7,7 @@ import { t } from './i18n.ts';
 import { scores, type FameRow } from './scores.ts';
 
 /** How many rows the screen of its own loads. */
-const FAME_ROWS = 50;
+const FAME_ROWS = 10;
 
 /** "🏆 Hall of fame" heading. */
 export function fameTitle(tag: 'h1' | 'h2' = 'h2'): HTMLElement {

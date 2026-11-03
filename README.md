@@ -140,7 +140,7 @@ Z3는 예시 실행뿐 아니라 반복 조건이 참인 모든 상태를 검사
 **명예의 전당**
 
 - 처음 들어갈 때 닉네임을 정하면, 판이 끝날 때 점수가 온라인 명예의 전당에 올라갑니다.
-- 명예의 전당은 닉네임마다 최고 점수를 보여 줍니다. 기록은 지워지지 않습니다. 상위 50명까지 나옵니다.
+- 명예의 전당은 닉네임마다 최고 점수를 보여 줍니다. 기록은 지워지지 않습니다. 상위 10명까지 나옵니다.
 - 닉네임은 2자에서 12자이고 한글, 영문, 숫자, 빈칸, `_`, `-`를 쓸 수 있습니다. 욕설은 막습니다.
 - 닉네임은 그 닉네임을 처음 쓴 기기에서만 쓸 수 있습니다.
 - 순위에 들어가지 않는 **연습**도 있습니다. 연습은 서버와 전혀 통신하지 않습니다.
@@ -154,7 +154,7 @@ Z3는 예시 실행뿐 아니라 반복 조건이 참인 모든 상태를 검사
 
 | 러시 모드 | 명예의 전당 |
 |---|---|
-| ![러시 연습: 카드의 코드 while (k < 9) { k := k + 2 − 5 }와 입력 조건 'k: 아무 정수'가 크게 나오고, 답한 뒤 틀렸다는 표시, 정답 '안 끝난다', 이유 한 줄이 보이며, 아래 무대에서는 사람이 k = 8부터 끝없이 내려간다](docs/screenshot-rush.png) | ![명예의 전당: 트로피가 붙은 제목 아래 순위, 닉네임, 점수, 카드 수가 가운데 정렬된 표](docs/screenshot-fame.png) |
+| ![러시 연습: 카드의 코드 while (n != 5) { n := -n }과 입력 조건 'n: 아무 정수'가 크게 나오고, 답한 뒤 틀렸다는 표시, 정답 '안 끝난다', 이유 한 줄이 보이며, 아래 무대에서는 사람이 n = 6부터 둥근 탑 위를 계속 돈다](docs/screenshot-rush.png) | ![명예의 전당: 트로피가 붙은 제목 아래 순위, 닉네임, 점수, 카드 수가 가운데 정렬된 표](docs/screenshot-fame.png) |
 
 ### 개념 ↔ 게임
 
@@ -187,22 +187,6 @@ Z3는 예시 실행뿐 아니라 반복 조건이 참인 모든 상태를 검사
 - 질의마다 Z3 시간 제한은 5초입니다. 넘으면 "판정기가 결정하지 못했어요"라고 알리고 시도 횟수에 넣지 않습니다.
 
 `/`와 `%`는 판정기와 실행기 모두 SMT-LIB/Z3 의미(유클리드 나눗셈, 나머지 ≥ 0)를 씁니다. 그래서 화면의 실행과 증명이 어긋나지 않습니다. SMT-LIB가 정하지 않은 0으로 나누기는 양쪽 모두 `x / 0 = 0`, `x % 0 = x`로 정했습니다.
-
-### 명예의 전당 서버
-
-명예의 전당은 무료 서버(Cloudflare Workers + D1 데이터베이스)에 있습니다. 코드는 `worker/`에 있습니다.
-
-- 게임은 점수를 보내지 않고 답 기록(카드, 고른 판정, 걸린 시간)만 보냅니다. 점수는 서버가 게임과 같은 규칙 코드(`src/core/rush.ts`)로 계산합니다.
-- 카드 순서가 난이도 순서에 맞는지, 걸린 시간의 합이 판을 시작한 뒤 실제로 흐른 시간보다 길지 않은지, 기록이 세 번째로 목숨을 잃은 답에서 정확히 끝나는지도 확인합니다.
-- 순위 판은 기기마다 3초에 한 번까지, 24시간에 300번까지 시작할 수 있습니다.
-- 기기를 구분하는 값은 기기에서 만든 무작위 값입니다. 서버에는 그 SHA-256 해시만 저장합니다. IP 주소는 저장하지 않습니다.
-- 요청은 `POST /nick`(닉네임 정하기), `POST /run/start`, `POST /run/finish`, `POST /me`(내 기록), `GET /top`(상위 50위, 15초 캐시) 다섯 가지입니다. 브라우저에서는 게임 주소와 로컬 개발 주소(localhost, 127.0.0.1)에서 연 페이지만 부를 수 있습니다(CORS). 브라우저 밖의 요청까지 막지는 않습니다.
-
-```sh
-cd worker
-npx -y wrangler@4 d1 execute halt-scores --remote --file=schema.sql   # 처음 한 번
-npx -y wrangler@4 deploy
-```
 
 ### 실행
 
@@ -240,7 +224,7 @@ MIT. [LICENSE](LICENSE)를 보세요.
 
 ### What it is
 
-**Halt?** is a browser puzzle game where you judge whether a loop ends, then prove why. It is also a competitive game: in rush mode you judge each card within 5 seconds, and when a run ends, your score goes to an online **hall of fame** with your nickname.
+<strong>Halt?</strong> is a browser puzzle game where you judge whether a loop ends, then prove why. It is also a competitive game: in rush mode you judge each card within 5 seconds, and when a run ends, your score goes to an online **hall of fame** with your nickname.
 
 A proof that a program is correct has two pieces: "if it ends, the result is right" (partial correctness) and "it does end" (termination). Halt? is for practising the second piece, **termination**. Proving termination sometimes needs invariants too, so you end up finding invariants along the way.
 
@@ -250,11 +234,9 @@ Proofs are checked by **Z3**, an SMT solver running in your browser, and by the 
 
 The title screen has three modes.
 
-- **Tutorial**: 14 pages that show what each part of the screen is, one at a time. Start here if you are new.
-- **Proof mode**: judge and prove 18 loops, one by one.
-- **Rush mode**: a race to judge loops quickly. 5 seconds a card, 3 lives.
-
-The 🏆 button at the top right opens the hall of fame.
+- **Tutorial**: a game simulation that shows what each part of the screen is, one at a time. Start here if you are new.
+- **Proof mode**: judge whether loops end and prove it, in 18 levels.
+- **Rush mode**: judge quickly whether programs end. 5 seconds a card, 3 lives. This is the competitive mode: nicknames and scores show in the hall of fame. The 🏆 button at the top right opens the hall of fame.
 
 ### Proof mode
 
@@ -262,7 +244,7 @@ The 🏆 button at the top right opens the hall of fame.
 
 A loop is drawn as a person walking down the stairs in front of a building. Each time the loop runs once, they go down one stair; when the loop ends, they leave by the exit.
 
-The loop condition is checked before every step, so if it is false from the start, they leave without taking a step (level 2 with n = −3).
+The loop condition is checked before every step, so if it is false from the start, they leave without taking a step (level 2 with `n = −3`).
 
 Every part of the stage matches the code.
 
@@ -292,7 +274,7 @@ The game draws every state of the sample runs as a stair as high as your express
 
 Z3 checks every state where the loop condition holds, not only the sample runs. If you are wrong, the counterexample Z3 found is played on the stage.
 
-If you chose **It never ends**, give a start that walks forever. If the walk comes back to a state it has been in, that is the proof. If no state repeats within 10,000 steps, you also write a **bottomless zone** Z (a recurrent set) that the run cannot leave, and Z3 checks it.
+If you chose **It never ends**, give a start that walks forever. If the walk comes back to a state it has been in, that is the proof. If no state repeats within 10,000 steps, you also write a **bottomless zone** Z (a recurrent set) that the run cannot leave. Z3 checks Z.
 
 | Verdict (step 1) | Proof you give (step 2) | Checked by |
 |---|---|---|
@@ -333,7 +315,7 @@ From level 10 you may write the steps left as a tuple such as `(floor, step)`. G
 
 ### Tutorial and guides
 
-The **tutorial** has 14 pages in five chapters (Start · Reading the stage · Step 1, verdict · Step 2, proof · Your turn).
+The **tutorial** has 14 pages in five parts (Start · Reading the stage · Step 1, verdict · Step 2, proof · Your turn).
 
 - It has you read the code first, then rings each part of the stage in amber, one at a time: the step count and values at the top left, the person and the stairs, the loop check, the exit, the height scale.
 - "One step ▶" moves the run one beat at a time (the check, or one stair down), and the lit line in the code and the step count move along.
@@ -350,7 +332,7 @@ The first example is level 1's loop on purpose. No other example is the same loo
 
 ### Rush mode and the hall of fame
 
-Short loop cards come one at a time, and for each you choose **It ends** (← or 1) or **It never ends** (→ or 2) within **5 seconds**. No proof. The verdicts mean what they mean in proof mode.
+Short loop cards come one at a time. For each you choose **It ends** (← or 1) or **It never ends** (→ or 2) within **5 seconds**. No proof. The verdicts mean what they mean in proof mode.
 
 **A run**
 
@@ -367,7 +349,7 @@ Short loop cards come one at a time, and for each you choose **It ends** (← or
 **Hall of fame**
 
 - Choose a nickname the first time, and when a run ends its score goes to the online hall of fame.
-- The hall of fame shows each nickname's best score and is never reset. It lists the top 50 players.
+- The hall of fame shows each nickname's best score. Records are never deleted. It lists the top 10.
 - A nickname has 2 to 12 characters: Hangul, Latin letters, digits, spaces, `_` and `-`. Slurs and profanity are blocked.
 - A nickname can only be used from the device that first used it.
 - There is also an unranked **practice** run, which never talks to the server.
@@ -381,7 +363,7 @@ Short loop cards come one at a time, and for each you choose **It ends** (← or
 
 | Rush mode | Hall of fame |
 |---|---|
-| ![Rush practice: the card while (j >= 4) { j := j * 2 } with the input condition "j: any integer" in large type; after the answer, the wrong mark, the verdict "It never ends" and a one-line reason, while the walker goes down forever from j = 4 on the stage below](docs/screenshot-rush-en.png) | ![Hall of fame: under a title with a trophy, a table of rank, nickname, score and cards, every cell centred](docs/screenshot-fame-en.png) |
+| ![Rush practice: the card while (y <= 1) { y := y - 3 } with the input condition "y: any integer" in large type; after the answer, the wrong mark, the verdict "It never ends" and a one-line reason, while the walker goes down forever from y = 1 on the stage below](docs/screenshot-rush-en.png) | ![Hall of fame: under a title with a trophy, a table of rank, nickname, score and cards, every cell centred](docs/screenshot-fame-en.png) |
 
 ### Concept ↔ game
 
@@ -415,22 +397,6 @@ The bottomless zone Z in a never-ends proof holds at the chosen start, keeps the
 
 `/` and `%` use SMT-LIB/Z3 semantics (Euclidean division, remainder ≥ 0) in both the judge and the simulator, so the run on screen and the proof never disagree. Division by zero, which SMT-LIB leaves open, is fixed to `x / 0 = 0` and `x % 0 = x` on both sides.
 
-### The hall-of-fame server
-
-The hall of fame lives on a free server (Cloudflare Workers with a D1 database). Its code is in `worker/`.
-
-- The game never sends a score, only the answer log (cards, verdicts, times). The server computes the score from it with the same rules the game uses (`src/core/rush.ts`).
-- It also checks that the cards follow the tier order, that the answer times add up to no more than the time that really passed since the run started, and that the log ends exactly at the answer that lost the third life.
-- A device can start a ranked run at most once every 3 seconds, and at most 300 times in 24 hours.
-- Devices are told apart by a random value made on the device; the server stores only its SHA-256 hash. No IP addresses are stored.
-- It answers five requests: `POST /nick` (choose a nickname), `POST /run/start`, `POST /run/finish`, `POST /me` (your record) and `GET /top` (top 50, cached for 15 s). In a browser, only pages opened from the game's address or a local development address (localhost, 127.0.0.1) may call it (CORS); requests from outside a browser are not blocked.
-
-```sh
-cd worker
-npx -y wrangler@4 d1 execute halt-scores --remote --file=schema.sql   # once
-npx -y wrangler@4 deploy
-```
-
 ### Run it
 
 ```sh
@@ -442,26 +408,9 @@ npm run gen-cards    # regenerate the rush cards (src/core/rushBank.ts)
 npm run serve:pages  # serves dist/ at http://localhost:4174/halt/ with no special headers, like GitHub Pages
 ```
 
-Add `?mute` to the address for silence, or `?flat` for the flat drawing instead of 3-D (used automatically without WebGL).
+Add `?mute` to the address for silence, or `?flat` for a flat drawing instead of the 3-D simulation (used automatically without WebGL).
 
 The game is served by [Vercel](https://vercel.com): a push to `main` builds and deploys it. `vercel.json` sends the cross-origin isolation headers (COOP `same-origin`, COEP `require-corp`). `.github/workflows/pages.yml` runs the tests and the build, then publishes only a redirect page at the old address `jkkms.github.io/halt/`.
-
-### Tech notes
-
-- Vite + TypeScript, plain DOM. The stage is drawn with [three.js](https://threejs.org) **0.186.1** and loaded only when a stage is first needed. Without WebGL, a flat SVG drawing stands in.
-- Runtime dependencies: `three`, `z3-solver` **5.3.1** and `coi-serviceworker` **0.1.7**, all pinned.
-- The font is [Pretendard](https://github.com/orioncactus/pretendard) **1.3.9** (SIL OFL 1.1), shipped with the game rather than loaded from a CDN: the official, unmodified variable-weight subsets split by unicode-range, so a browser downloads only the pieces for the characters on screen. License: [licenses/Pretendard-OFL-1.1.txt](licenses/Pretendard-OFL-1.1.txt) and `fonts/LICENSE.txt` in the build.
-- Sounds are generated with WebAudio; no sound files. `prefers-reduced-motion` shortens the animations.
-- Z3 needs SharedArrayBuffer, which needs a cross-origin isolated page. The game first ran on GitHub Pages with `coi-serviceworker` (a service worker that imitates the headers), but Safari itself does not turn on isolation for imitated headers, so the judge never started there. Hence the move to Vercel, which sends real headers. `coi-serviceworker` stays as a fallback where no headers are sent (e.g. `serve:pages`).
-- Z3's Emscripten loader and wasm and the font files are not bundled: `scripts/copy-assets.mjs` copies them to `public/`. The 35 MB wasm is fetched gzipped (about 8 MB) and unpacked in the browser. The page stays usable while it loads.
-- Progress (best stars per level, whether the tutorial was finished, which guides and intros were shown, the sound setting, rush bests and seen cards, the nickname and the device value) lives in `localStorage`; the game also works without it.
-- Layout
-  - `src/core/`: expression language, levels and tutorial-only programs, simulator, Z3 checks, game rules, the stairs the stage draws, tutorial and guides, rush cards and rules, nickname rules
-  - `src/ui/`: screens (title, tutorial, level select, level, rush, hall of fame, 3-D stage)
-  - `src/z3/`: browser Z3 loader
-  - `worker/`: the hall-of-fame server
-  - `scripts/`: asset copying, rush card generation
-  - `test/`: tests
 
 ### Credits
 

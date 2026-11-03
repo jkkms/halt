@@ -11,8 +11,9 @@ export const START_GAP_MS = 3000;
 /** … and at most this many runs per token in 24 hours. */
 export const RUNS_PER_DAY = 300;
 export const DAY_MS = 24 * 60 * 60 * 1000;
-export const TOP_DEFAULT = 50;
-export const TOP_MAX = 50;
+/** The hall of fame lists the top 10 (author, 11/3: 50 was too many). */
+export const TOP_DEFAULT = 10;
+export const TOP_MAX = 10;
 
 export const ALLOWED_ORIGINS = ['https://halt-seven-delta.vercel.app'];
 
