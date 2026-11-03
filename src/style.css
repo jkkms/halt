@@ -1150,10 +1150,10 @@ var {
   font-weight: 700;
 }
 
-/* the page text: a still box, placed and sized by tutorialView.ts (the longest page text fits) */
-.tut-narr {
-  position: absolute;
-  z-index: 7;
+/* the page text: a still box, placed and sized by tutorialView.ts (the longest page text fits); the level screen's
+   guide box (tourView.ts) has the same look */
+.tut-narr,
+.guide-box {
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 16px;
@@ -1161,6 +1161,11 @@ var {
   border: 2px solid var(--amber);
   box-shadow: 0 10px 26px rgba(6, 8, 24, 0.38);
   color: var(--ink);
+}
+
+.tut-narr {
+  position: absolute;
+  z-index: 7;
 }
 
 .tut-narr.waiting {
@@ -1184,17 +1189,20 @@ var {
   overflow-wrap: anywhere;
 }
 
-.tut-narr.fs1 .tut-narr-text {
+.tut-narr.fs1 .tut-narr-text,
+.guide-box.fs1 .tut-narr-text {
   font-size: 15px;
   line-height: 1.58;
 }
 
-.tut-narr.fs2 .tut-narr-text {
+.tut-narr.fs2 .tut-narr-text,
+.guide-box.fs2 .tut-narr-text {
   font-size: 14.5px;
   line-height: 1.55;
 }
 
-.tut-narr.fs3 .tut-narr-text {
+.tut-narr.fs3 .tut-narr-text,
+.guide-box.fs3 .tut-narr-text {
   font-size: 13.5px;
   line-height: 1.52;
 }
@@ -1249,6 +1257,104 @@ var {
     box-shadow:
       0 0 0 6px rgba(242, 165, 65, 0.1),
       0 0 26px rgba(255, 190, 90, 0.75);
+  }
+}
+
+/* the level screen's guide (SPEC_guide, tourView.ts): a layer over the page that lets clicks through; the rings and
+   the still box (over the stage's lower left, or a sheet at the bottom on the stacked layout), both placed in px */
+.guide {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.guide[hidden] {
+  display: none;
+}
+
+.guide-rings {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.guide-box {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.guide-box.guide-measure {
+  left: 0;
+  top: 0;
+  height: auto !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.guide-head {
+  margin: 0;
+  padding: 11px 17px 0;
+  font-size: 12.5px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
+  color: var(--ember);
+}
+
+.guide-box .tut-narr-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 3px;
+  padding-bottom: 8px;
+}
+
+.guide-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 12px;
+  white-space: nowrap;
+}
+
+.guide-nav .btn {
+  box-shadow: none;
+}
+
+.guide-nav .g-count {
+  min-width: 3.4em;
+  text-align: center;
+  font: 700 13px var(--mono);
+  color: var(--ink-2);
+}
+
+.guide-nav .g-next {
+  margin-left: auto;
+}
+
+.guide-nav .g-skip {
+  margin-left: 4px;
+  font-size: 13.5px;
+}
+
+/* while a tour is open: the stage caption makes room for the box (wide); the page can scroll past the sheet */
+.level-screen.guide-desk .stage-caption {
+  visibility: hidden;
+}
+
+.level-screen.guide-sheet .panel-inner {
+  padding-bottom: calc(var(--guide-pad, 0px) + 14px);
+}
+
+@media (max-width: 760px) {
+  .guide-head {
+    padding: 9px 14px 0;
+  }
+
+  .guide-nav {
+    padding: 0 9px 9px;
   }
 }
 

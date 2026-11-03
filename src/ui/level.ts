@@ -23,11 +23,11 @@ import {
   type Outcome,
   type Verdict,
 } from '../core/game.ts';
-import { helpFor } from '../core/groups.ts';
 import { LEVELS, levelById, type Level } from '../core/levels.ts';
 import { initialState, sampleInputs, SIM_CAP, type Run, type State } from '../core/sim.ts';
 import { cexScene, heightMap, ringScene, runScene, sampleScene, sceneBase, shaftScene, stairsOfRun, walk, zeroSteps, guardCheck, stairsWithV, type StageScene } from '../core/stage.ts';
-import { introFor, INTRO_LEVELS } from '../core/tutorial.ts';
+import { helpMenu, screenState } from '../core/tours.ts';
+import { introFor } from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
 import { sfx } from './audio.ts';
 import { renderChart, type Series } from './chart.ts';
@@ -38,6 +38,7 @@ import { errorText } from './errors.ts';
 import { num, pretty, rank, state as fmtState, starsText } from './format.ts';
 import { lang, t, type Key } from './i18n.ts';
 import { openModal } from './overlay.ts';
+import { LevelGuide } from './tourView.ts';
 
 interface Session {
   verdict: Verdict | null;
@@ -113,6 +114,8 @@ export class LevelScreen implements Screen {
   private soundNext = false;
   /** After a judged attempt, the input that had the focus gets it back with its whole content selected. */
   private selectOnRender = false;
+  /** The guided tours of this screen (SPEC_guide). */
+  private guide: LevelGuide;
 
   constructor(app: App, id: number, daily: string | null) {
     this.app = app;
@@ -133,6 +136,7 @@ export class LevelScreen implements Screen {
     app.saved.current = id;
     app.persist();
     this.el = h('div', { class: 'screen level-screen' });
+    this.guide = new LevelGuide(app, { root: this.el, level: this.level, state: () => screenState(this.ses.verdict, this.ses.outcome) });
     this.build();
   }
 
@@ -148,7 +152,7 @@ export class LevelScreen implements Screen {
     // The code card stays on top (sticky); the intro note goes under the result so that the code, the input,
     // the chips and the check button fit on one laptop screen.
     this.panel.replaceChildren(this.els.code, this.els.verdict, this.els.proof, this.els.result, this.els.intro, this.els.graph);
-    this.el.replaceChildren(bar, h('div', { class: 'level-main' }, this.stageBox, h('aside', { class: 'panel' }, this.panel)));
+    this.el.replaceChildren(bar, h('div', { class: 'level-main' }, this.stageBox, h('aside', { class: 'panel' }, this.panel)), this.guide.el);
     this.renderAll();
   }
 
@@ -156,6 +160,8 @@ export class LevelScreen implements Screen {
     this.app.stage.mount(this.stageBox);
     this.renderStage();
     this.suggestTutorial();
+    // the guide waits until nothing else is open (the suggestion above; the intros come before this screen)
+    this.guide.shown();
   }
 
   /** The first visit to level 1 suggests the tutorial, unless it was read or skipped. */
@@ -170,30 +176,31 @@ export class LevelScreen implements Screen {
     ]);
   }
 
-  /** "?": the level's own intro (5, 7, 10), the tutorial (the other levels before 7), or a menu of the tutorial and the three intros. */
+  /** "?": the same menu on every level: the tutorial, the three intros and this screen's guide (SPEC_guide §A). */
   private openHelp(): void {
-    const help = helpFor(this.level.id);
     const here = location.hash || `#/level/${this.level.id}`;
-    if (help.k === 'intro') return this.app.openIntro(help.level, here);
-    if (help.k === 'tutorial') {
-      location.hash = '#/tutorial';
-      return;
-    }
     openModal(t('helpTitle'), [], [
-      { label: t('helpTutorial'), primary: true, onClick: () => (location.hash = '#/tutorial') },
-      ...INTRO_LEVELS.map((n) => ({ label: t('helpIntro', { title: introFor(n)!.title[lang()], n }), onClick: () => this.app.openIntro(n, here) })),
+      ...helpMenu().map((item) =>
+        item.k === 'tutorial'
+          ? { label: t('helpTutorial'), primary: true, onClick: () => (location.hash = '#/tutorial') }
+          : item.k === 'intro'
+            ? { label: t('helpIntro', { title: introFor(item.level)!.title[lang()], n: item.level }), onClick: () => this.app.openIntro(item.level, here) }
+            : { label: t('guideReplay'), onClick: () => this.guide.replay() },
+      ),
       { label: t('close') },
     ]);
   }
 
   destroy(): void {
     if (this.previewTimer) clearTimeout(this.previewTimer);
+    this.guide.destroy();
   }
 
   relang(): void {
     this.badge = this.app.judgeBadge(() => this.explainJudge());
     this.build();
     this.shown();
+    this.guide.relang();
   }
 
   z3Changed(): void {
@@ -666,6 +673,7 @@ export class LevelScreen implements Screen {
     }
     this.renderAll();
     this.renderStage();
+    this.guide.kick();
   }
 
   // ------------------------------------------------------------ the stage
@@ -737,8 +745,9 @@ export class LevelScreen implements Screen {
     const onBeat = (b: Parameters<typeof follow>[1]) => {
       if (this.codeView) follow(this.codeView, b);
     };
+    // while a tour is open on a wide screen, the scene keeps clear of its box
     const showIt = (scene: StageScene, caption: string, extra: { badge?: string; controls?: Node[] } = {}) =>
-      stage.show(scene, { caption, onBeat, sound, loop: true, ...extra });
+      stage.show(scene, { caption, onBeat, sound, loop: true, ...extra, ...this.guide.stageOpts() });
 
     if (o?.type === 'ends' && o.result === 'refuted' && l.kind === 'never') {
       const s0 = this.keepGoingSample();
@@ -856,6 +865,7 @@ export class LevelScreen implements Screen {
     this.renderChart();
     const first = this.els.proof.querySelector<HTMLInputElement>('input');
     if (first && window.innerWidth >= 900) first.focus({ preventScroll: true });
+    this.guide.kick();
   }
 
   private async submitEnds(): Promise<void> {
@@ -969,6 +979,7 @@ export class LevelScreen implements Screen {
     this.renderStage();
     if (solved || failed) this.els.result.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
     if (solved && l.kind === 'open') this.ending();
+    this.guide.kick();
   }
 
   private explainJudge(): void {

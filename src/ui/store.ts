@@ -22,6 +22,8 @@ export interface Saved {
   tutorial?: 'done' | 'skipped';
   /** v0.3: levels whose first visit already showed something (1: the tutorial suggestion; 5, 7, 10: their intro). */
   introsShown: number[];
+  /** SPEC_guide: the level screen's tours already shown to the end or skipped ('screen', 'proof', 'result', 'never'). */
+  guidesSeen?: string[];
   current?: number;
   daily: Record<string, DailyRecord>;
   muted?: boolean;
@@ -72,6 +74,7 @@ export function load(): Saved {
       best: { ...(data.best ?? {}) },
       tutorial: data.tutorial === 'done' || data.tutorial === 'skipped' ? data.tutorial : undefined,
       introsShown: numbers(data.introsShown),
+      guidesSeen: Array.isArray(data.guidesSeen) ? [...new Set(data.guidesSeen.filter((x): x is string => typeof x === 'string'))] : undefined,
       current: typeof data.current === 'number' ? data.current : undefined,
       daily: { ...(data.daily ?? {}) },
       muted: typeof data.muted === 'boolean' ? data.muted : undefined,

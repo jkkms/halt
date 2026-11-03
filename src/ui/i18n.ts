@@ -197,6 +197,9 @@ const en = {
   helpTitle: 'How to play',
   helpTutorial: 'Tutorial (14 pages)',
   helpIntro: '{title} (before level {n})',
+  // the level screen's guide (SPEC_guide)
+  guideReplay: 'Show this screen’s guide again',
+  guideGotIt: 'Got it',
   newIdea: 'New in this level: {title}.',
   readIntro: 'Read it again',
   suggestTitle: 'Start with the tutorial?',
@@ -509,6 +512,9 @@ const ko: Strings = {
   helpTitle: '하는 법',
   helpTutorial: '튜토리얼 (14쪽)',
   helpIntro: '{title} (레벨 {n} 전에)',
+  // 레벨 화면 안내 (SPEC_guide)
+  guideReplay: '이 화면 안내 다시 보기',
+  guideGotIt: '알겠어요',
   newIdea: '이 레벨에서 새로 나오는 개념: {title}.',
   readIntro: '설명 다시 보기',
   suggestTitle: '튜토리얼부터 볼까요?',

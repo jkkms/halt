@@ -4,7 +4,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { evalBool, parseRaw } from '../src/core/expr.ts';
 import { parseV, railingAllowed } from '../src/core/game.ts';
-import { CAMPAIGN, codePreview, GROUPS, helpFor, recommendedNext } from '../src/core/groups.ts';
+import { CAMPAIGN, codePreview, GROUPS, recommendedNext } from '../src/core/groups.ts';
+import { helpMenu } from '../src/core/tours.ts';
 import { LEVELS, levelById, RAILING_FROM, TUPLES_FROM, TUTORIAL_PROGRAMS, type TutorialKey } from '../src/core/levels.ts';
 import { guardHolds, initialState, sampleInputs, step } from '../src/core/sim.ts';
 import { allowsZeroSteps, beats, guardCheck, guardText, runScene, sampleScene, stairsWithV, walk, zeroStepSample, zeroSteps, type StageScene } from '../src/core/stage.ts';
@@ -284,19 +285,8 @@ describe('level groups', () => {
     assert.equal(recommendedNext(Object.fromEntries(CAMPAIGN.map((id) => [id, 1]))), null);
   });
 
-  it('the “?” of levels 5, 7 and 10 opens their intro; the others get the same help per range (no verdict leaks)', () => {
-    assert.deepEqual(helpFor(5), { k: 'intro', level: 5 });
-    assert.deepEqual(helpFor(7), { k: 'intro', level: 7 });
-    assert.deepEqual(helpFor(10), { k: 'intro', level: 10 });
-    for (const l of LEVELS) {
-      const help = helpFor(l.id);
-      if (INTRO_LEVELS.includes(l.id)) continue;
-      if (l.id < 7) assert.deepEqual(help, { k: 'tutorial' }, `level ${l.id}`);
-      else assert.deepEqual(help, { k: 'menu' }, `level ${l.id}`);
-    }
-    // the menu levels mix levels that end and levels that never end
-    const menuKinds = new Set(LEVELS.filter((l) => helpFor(l.id).k === 'menu').map((l) => l.kind));
-    assert.ok(menuKinds.has('ends') && menuKinds.has('never'));
+  it('the “?” opens the same menu on every level: the tutorial, the three intros, this screen’s guide (SPEC_guide)', () => {
+    assert.deepEqual(helpMenu(), [{ k: 'tutorial' }, { k: 'intro', level: 5 }, { k: 'intro', level: 7 }, { k: 'intro', level: 10 }, { k: 'guide' }]);
     assert.deepEqual(INTRO_LEVELS, [5, 7, 10]);
     assert.deepEqual(Object.keys(INTROS).map(Number), [5, 7, 10]);
   });

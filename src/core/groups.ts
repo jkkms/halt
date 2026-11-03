@@ -1,4 +1,4 @@
-// Level select: chapters of levels, the recommended next level, and which tutorial chapter helps where.
+// Level select: chapters of levels and the recommended next level. (What a level's "?" opens: helpMenu in tours.ts.)
 // Pure data and functions (tested); the verdict of a level is never part of what is shown.
 
 import { LEVELS, type Level, type Text } from './levels.ts';
@@ -24,20 +24,6 @@ export const CAMPAIGN: number[] = LEVELS.map((l) => l.id);
 /** First unsolved level in campaign order (null when every level is solved). */
 export function recommendedNext(best: Record<string, number>): number | null {
   return CAMPAIGN.find((id) => !(best[id] ?? 0)) ?? null;
-}
-
-/**
- * What a level's "?" opens: levels 5, 7 and 10 their own intro (the bottomless zone; railing; floors and steps); the
- * other levels before level 7 the tutorial; every other level a small menu with the tutorial and the three intros.
- * Every level of a range gets the same help, so the help never tells which levels end.
- */
-export type Help = { k: 'intro'; level: number } | { k: 'tutorial' } | { k: 'menu' };
-
-export const INTRO_AT = { zone: 5, railing: 7, floors: 10 } as const;
-
-export function helpFor(levelId: number): Help {
-  if (levelId === INTRO_AT.zone || levelId === INTRO_AT.railing || levelId === INTRO_AT.floors) return { k: 'intro', level: levelId };
-  return levelId < INTRO_AT.railing ? { k: 'tutorial' } : { k: 'menu' };
 }
 
 /** A tiny preview of the code for a level card: the init, the while line and the start of the body, on one line. */

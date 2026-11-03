@@ -16,7 +16,6 @@ import {
   INTROS,
   introFor,
   program,
-  richParts,
   sceneStart,
   shotProgram,
   STAGE_FOCUS,
@@ -34,6 +33,7 @@ import { codeView, follow, type CodeView } from './code.ts';
 import { h } from './dom.ts';
 import { errorText } from './errors.ts';
 import { pretty, starsText } from './format.ts';
+import { FONT_STEPS, richNodes as rich, RingLayer, tallestText } from './guide.ts';
 import { lang, t } from './i18n.ts';
 import type { Insets, PlayInfo, StageHold, StageTarget } from './stageTypes.ts';
 import { boxWidth, cardWidth, deskLayout, maxBoxHeight, phoneInset, ringBox, textBox, type Box } from './tutLayout.ts';
@@ -44,13 +44,9 @@ export type TutorialMode = { k: 'tutorial' } | { k: 'intro'; level: number; retu
 const FALLBACK_MS = 6500;
 /** Phones and narrow windows: the text box and the cards go under the stage (matches the CSS). */
 const NARROW = '(max-width: 760px)';
-/** Text sizes to try, largest first, until the longest page fits the box without scrolling. */
-const FONT_STEPS = ['', 'fs1', 'fs2', 'fs3'];
 
 /** Every page the box must fit: the tutorial and all intros share one box. */
 const ALL_PAGES: TutPage[] = [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
-
-const rich = (s: string) => richParts(s).map((part) => (part.kind === 'bold' ? h('strong', {}, part.s) : part.kind === 'code' ? h('code', {}, part.s) : part.s));
 
 const toHold = (hold: Hold): StageHold => (hold === 'start' ? { at: 'start' } : hold === 'lastCheck' ? { at: 'lastCheck' } : { at: 'check', i: Number(hold.split(':')[1]) });
 
@@ -91,6 +87,7 @@ export class TutorialScreen implements Screen {
   private measureText = h('p', { class: 'tut-narr-text' });
   private measure = h('div', { class: 'tut-narr tut-narr-measure', 'aria-hidden': 'true' }, this.measureText);
   private rings = h('div', { class: 'tut-rings', 'aria-hidden': 'true' });
+  private ringLayer = new RingLayer(this.rings);
   private code: CodeView | null = null;
   private codeProg: TutorialKey | null = null;
   private tryText = '';
@@ -388,15 +385,8 @@ export class TutorialScreen implements Screen {
 
   /** The tallest page text at this width (with the current font step). */
   private tallest(width: number): number {
-    const m = this.measure;
-    m.style.width = `${width}px`;
-    let max = 0;
     const L = lang();
-    for (const p of ALL_PAGES) {
-      this.measureText.replaceChildren(...rich(p.text[L]));
-      max = Math.max(max, m.offsetHeight);
-    }
-    return Math.ceil(max);
+    return tallestText(this.measure, this.measureText, width, ALL_PAGES.map((p) => p.text[L]));
   }
 
   /**
@@ -532,28 +522,12 @@ export class TutorialScreen implements Screen {
   private frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const base = this.main.getBoundingClientRect();
-    const targets = this.targets();
-    const rings = this.rings;
-    while (rings.children.length < targets.length) rings.append(h('div', { class: 'tut-ring' }));
-    [...rings.children].forEach((el, i) => {
-      const ring = el as HTMLElement;
-      const f = targets[i];
-      const r = f ? this.targetRect(f, base) : null;
-      if (!f || !r) {
-        ring.hidden = true;
-        return;
-      }
-      const g = ringBox(r, f === 'codeLine' ? 3 : 6);
-      ring.hidden = false;
-      ring.dataset.target = f;
-      const css = `${g.x.toFixed(0)}px,${g.y.toFixed(0)}px,${g.w.toFixed(0)}px,${g.h.toFixed(0)}px`;
-      if (ring.dataset.box !== css) {
-        ring.dataset.box = css;
-        ring.style.transform = `translate(${g.x.toFixed(0)}px, ${g.y.toFixed(0)}px)`;
-        ring.style.width = `${g.w.toFixed(0)}px`;
-        ring.style.height = `${g.h.toFixed(0)}px`;
-      }
-    });
+    this.ringLayer.paint(
+      this.targets().map((f) => {
+        const r = this.targetRect(f, base);
+        return { target: f, box: r ? ringBox(r, f === 'codeLine' ? 3 : 6) : null };
+      }),
+    );
     this.paintStep();
   };
 
