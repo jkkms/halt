@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { fitDistance, frameScale, pickFrame, type Bounds } from '../src/ui/frame.ts';
-import { BAND, bandBox, bandColumns, clip, linePieces, overlap, phoneInset, pieceWidth, ringBox, sceneFrames, topStrip, within, type Box, type Insets } from '../src/ui/tutLayout.ts';
+import { BAND, bandBox, bandColumns, clip, linePieces, mergeOverlapping, overlap, phoneInset, pieceWidth, ringBox, sceneFrames, topStrip, within, type Box, type Insets } from '../src/ui/tutLayout.ts';
 
 const sizes = [
   { w: 1440, h: 844 }, // 1440 × 900
@@ -50,6 +50,22 @@ describe('the band', () => {
       }
     }
     assert.equal(bandColumns(729).piece, null, 'a narrow stage has no room beside the text');
+  });
+
+  it('overlapping rings of a target become one ring around both; apart or of another target, they stay one per piece', () => {
+    const r = (target: string, x: number, y = 0, w = 40, h = 40) => ({ target, piece: { x: x + 6, y: y + 6, w: w - 12, h: h - 12 }, box: { x, y, w, h } });
+    // three marks in a row whose rings cross (tutorial page 11): one ring
+    const m = mergeOverlapping([r('marks', 0), r('marks', 30), r('marks', 60)]);
+    assert.equal(m.length, 1);
+    assert.deepEqual(m[0]!.box, { x: 0, y: 0, w: 100, h: 40 });
+    assert.deepEqual(m[0]!.piece, { x: 6, y: 6, w: 88, h: 28 });
+    // a chain merges through: a meets b, then (a + b) meets c
+    assert.equal(mergeOverlapping([r('marks', 0), r('marks', 70), r('marks', 35, 30)]).length, 1);
+    // apart, or another target: untouched
+    assert.equal(mergeOverlapping([r('marks', 0), r('marks', 50)]).length, 2);
+    assert.equal(mergeOverlapping([r('marks', 0), r('walker', 20)]).length, 2);
+    // a hidden ring stays
+    assert.equal(mergeOverlapping([r('marks', 0), { target: 'marks', piece: null, box: null }]).length, 2);
   });
 
   it('the shot strip sits along the top edge between the side cards, centred', () => {

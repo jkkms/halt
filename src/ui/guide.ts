@@ -3,7 +3,7 @@
 // §C, one per piece in v0.7) and the measuring that gives the still narration one height for all its texts.
 import { richBlocks, richParts, type RichPart } from '../core/tutorial.ts';
 import { h } from './dom.ts';
-import type { Box } from './tutLayout.ts';
+import { mergeOverlapping, type Box } from './tutLayout.ts';
 
 const partNode = (part: RichPart): string | HTMLElement => (part.kind === 'bold' ? h('strong', {}, part.s) : part.kind === 'code' ? h('code', {}, part.s) : part.s);
 
@@ -57,8 +57,9 @@ export class RingLayer {
     this.el = el;
   }
 
-  /** Place the rings (boxes in px of the layer); the DOM is only touched where a ring moved. */
-  paint(rings: RingSpec[]): void {
+  /** Place the rings (boxes in px of the layer; overlapping rings of a target become one); the DOM is only touched where a ring moved. */
+  paint(all: RingSpec[]): void {
+    const rings = mergeOverlapping(all);
     const layer = this.el;
     while (layer.children.length < rings.length) layer.append(h('div', { class: 'tut-ring' }));
     [...layer.children].forEach((el, i) => {

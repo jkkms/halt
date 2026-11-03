@@ -43,6 +43,37 @@ export function overlap(a: Box, b: Box): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
+/** The smallest box around both. */
+export function hull(a: Box, b: Box): Box {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
+
+/**
+ * Rings of the same target that overlap become one ring around both, until none overlap (author, 11/3: "겹치는
+ * 고리는 하나로 묶어줘" — on tutorial page 11 the three flat marks of a level stair stood so close that their rings
+ * crossed). Rings that do not touch stay one per piece; hidden rings (no box) are kept as they are.
+ */
+export function mergeOverlapping<T extends { target: string; piece?: Box | null; box: Box | null }>(rings: T[]): T[] {
+  const out = rings.map((r) => ({ ...r }));
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < out.length && !merged; i++) {
+      for (let j = i + 1; j < out.length && !merged; j++) {
+        const a = out[i]!;
+        const b = out[j]!;
+        if (a.target !== b.target || !a.box || !b.box || !overlap(a.box, b.box)) continue;
+        a.box = hull(a.box, b.box);
+        a.piece = a.piece && b.piece ? hull(a.piece, b.piece) : (a.piece ?? b.piece ?? null);
+        out.splice(j, 1);
+        merged = true;
+      }
+    }
+  }
+  return out;
+}
+
 /** Does b lie inside a? */
 export function within(a: Box, b: Box): boolean {
   return b.x >= a.x - 0.01 && b.y >= a.y - 0.01 && b.x + b.w <= a.x + a.w + 0.01 && b.y + b.h <= a.y + a.h + 0.01;
