@@ -434,13 +434,13 @@ export function levelById(id: number): Level {
 // ---------------------------------------------------------------- tutorial-only programs
 
 /**
- * Programs that appear only in the tutorial and in the short intros before levels 7 and 10. They are not
+ * Programs that appear only in the tutorial and in the short intros before levels 5, 7 and 10. They are not
  * levels (never in LEVELS, never in the level select), so the tutorial cannot give away a level's answer.
  * `countdown` is level 1's code on purpose: level 1 is the practice level.
  * Their ids start at 101 so they never clash with a level; the railing and tuple gates of the game rules
  * (open from level 7 and 10) are therefore open for them, which the railing and floors intros need.
  */
-export type TutorialKey = 'countdown' | 'flip' | 'railing' | 'floors';
+export type TutorialKey = 'countdown' | 'flip' | 'railing' | 'floors' | 'grow';
 
 const TUTORIAL_DEFS: Record<TutorialKey, LevelDef> = {
   countdown: {
@@ -496,6 +496,19 @@ while (k != 0) {
     factsText: 's ≥ 0',
     kind: 'ends',
     samples: [{ f: 2, s: 2 }],
+  },
+  // The bottomless-zone intro before level 5 (SPEC_v0.6 §E): from x = 1 it grows forever, never repeating a state.
+  grow: {
+    id: 105,
+    title: { en: 'Growing', ko: '자라기' },
+    code: `while (x != 0) {
+  x := x + 3
+}`,
+    inputs: ['x'],
+    start: 'true',
+    facts: 'true',
+    kind: 'never',
+    samples: [{ x: 1 }],
   },
 };
 

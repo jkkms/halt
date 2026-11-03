@@ -170,7 +170,7 @@ export class LevelScreen implements Screen {
     ]);
   }
 
-  /** "?": the level's own intro (9, 10), the tutorial (before 9), or a menu of all three (after 10). */
+  /** "?": the level's own intro (5, 7, 10), the tutorial (the other levels before 7), or a menu of the tutorial and the three intros. */
   private openHelp(): void {
     const help = helpFor(this.level.id);
     const here = location.hash || `#/level/${this.level.id}`;

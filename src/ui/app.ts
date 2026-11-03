@@ -1,7 +1,7 @@
 // The app shell: hash routes for the screens, the shared stage, the judge, language and sound.
 //   #/              title
 //   #/tutorial      the tutorial        #/tutorial/3   its page 3
-//   #/intro/9       the intro before level 9 (also #/intro/10, and #/intro/9/2 for its page 2)
+//   #/intro/7       the intro before level 7 (also #/intro/5, #/intro/10, and #/intro/7/2 for its page 2)
 //   #/levels        level select        #/level/7      a level        #/daily   today's level
 //   #/rush          rush mode           #/rush/today   today's rush   #/rush/practice   practice
 import { dailyLevelId, utcDateKey } from '../core/game.ts';
@@ -116,7 +116,7 @@ export class App {
     const [head, arg, sub] = parts;
     const daily = head === 'daily' ? utcDateKey(new Date()) : null;
     const levelId = head === 'daily' || (head === 'level' && arg) ? (daily ? dailyLevelId(daily, LEVELS.length) : Math.min(LEVELS.length, Math.max(1, Number(arg) || 1))) : null;
-    // The first time level 9 or 10 opens, its short intro comes first.
+    // The first time level 5, 7 or 10 opens, its short intro comes first.
     if (levelId !== null && INTRO_LEVELS.includes(levelId) && !this.saved.introsShown.includes(levelId)) {
       this.saved.introsShown.push(levelId);
       this.persist();

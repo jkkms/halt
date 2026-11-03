@@ -729,7 +729,8 @@ var {
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate(var(--x, -999px), var(--y, -999px)) translate(var(--ax), var(--ay));
+  /* --dy: moved up or down by the label layout pass so that no two labels cover each other (stage3d.ts) */
+  transform: translate(var(--x, -999px), calc(var(--y, -999px) + var(--dy, 0px))) translate(var(--ax), var(--ay));
   white-space: nowrap;
   font-size: 12px;
   line-height: 1.2;
@@ -815,6 +816,13 @@ var {
   font-weight: 750;
 }
 
+.l3-tick.basement {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cdb8e6;
+}
+
 .l3-door {
   font-size: 11.5px;
   font-weight: 750;
@@ -878,22 +886,6 @@ var {
 
 .l3-inf.big {
   font-size: 64px;
-}
-
-.l3-call {
-  font-size: 13px;
-  font-weight: 750;
-  padding: 5px 10px;
-  border-radius: 9px;
-  background: var(--amber);
-  color: var(--amber-ink);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-  animation: pop 0.35s ease both;
-}
-
-.l3-call.dark {
-  background: var(--paper);
-  color: var(--ink);
 }
 
 .l3-check {
@@ -1086,12 +1078,14 @@ var {
 }
 
 /* ---------------------------------------------------------------- tutorial */
-/* v0.5: the stage fills the screen and the walker speaks in a bubble; the controls stay still in a pill at the
-   bottom, and a page's interactive piece floats in a card just above them (under the stage on phones). */
+/* v0.6: the stage fills the screen; the page text sits in one still box (upper left, the same rect on every page;
+   under the stage on phones), amber rings show what it talks about, the controls stay still in a pill at the
+   bottom, and a page's interactive card sits under the text box (or above the pill when there is no room). */
 
 .tut-screen {
   --pill-b: 16px;
   --pill-h: 54px;
+  --col-w: 400px;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -1156,75 +1150,106 @@ var {
   font-weight: 700;
 }
 
-/* the speech bubble: placed every frame by tutorialView.ts (translate), its outline drawn as one SVG path */
-.tut-bubble {
+/* the page text: a still box, placed and sized by tutorialView.ts (the longest page text fits) */
+.tut-narr {
   position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 5;
-  width: max-content;
-  max-width: min(380px, calc(100% - 20px));
-  pointer-events: none;
+  z-index: 7;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff5e1;
+  border: 2px solid var(--amber);
+  box-shadow: 0 10px 26px rgba(6, 8, 24, 0.38);
+  color: var(--ink);
+}
+
+.tut-narr.waiting {
   visibility: hidden;
-  will-change: transform;
 }
 
-.tut-bubble.placed {
-  visibility: visible;
-}
-
-.tut-bubble-body {
-  position: relative;
-}
-
-.tut-bubble-body.pop {
-  animation: bubble-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-}
-
-@keyframes bubble-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.82);
-  }
-}
-
-.tut-bubble-shape {
-  position: absolute;
+.tut-narr-measure {
   left: 0;
   top: 0;
-  overflow: visible;
-  filter: drop-shadow(0 8px 16px rgba(6, 8, 24, 0.4));
+  height: auto !important;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-.tut-bubble-line {
-  fill: #fff5e1;
-  stroke: var(--amber);
-  stroke-width: 2.5;
-  stroke-linejoin: round;
-}
-
-.tut-bubble-text {
-  position: relative;
+.tut-narr-text {
   margin: 0;
   padding: 13px 17px 14px;
-  color: var(--ink);
   font-size: 15.5px;
   line-height: 1.62;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
-.tut-bubble-text strong {
+.tut-narr.fs1 .tut-narr-text {
+  font-size: 15px;
+  line-height: 1.58;
+}
+
+.tut-narr.fs2 .tut-narr-text {
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.tut-narr.fs3 .tut-narr-text {
+  font-size: 13.5px;
+  line-height: 1.52;
+}
+
+.tut-narr-text.fade {
+  animation: narr-fade 0.35s ease both;
+}
+
+@keyframes narr-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.tut-narr-text strong {
   font-weight: 820;
   color: var(--ember);
 }
 
-.tut-bubble-text code {
+.tut-narr-text code {
   padding: 1px 6px;
   border-radius: 6px;
   background: var(--sand-2);
   font-size: 0.92em;
   font-weight: 700;
+}
+
+/* focus rings: above the stage and the cards, under the text box; outside their target, so its text stays clear */
+.tut-rings {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tut-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  border: 2.5px solid var(--amber);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 3px rgba(242, 165, 65, 0.22),
+    0 0 18px rgba(255, 190, 90, 0.55);
+  animation: ring-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(242, 165, 65, 0.1),
+      0 0 26px rgba(255, 190, 90, 0.75);
+  }
 }
 
 /* the controls: still, compact, bottom centre of the stage */
@@ -1271,9 +1296,16 @@ var {
 
 .tc-count {
   min-width: 3.6em;
+  padding: 0 4px;
   text-align: center;
   font: 700 13.5px var(--mono);
   color: var(--on-night-2);
+}
+
+.tc-chapter {
+  font-family: var(--sans);
+  font-weight: 750;
+  color: var(--amber-2);
 }
 
 .tut-controls .tc-next {
@@ -1294,16 +1326,14 @@ var {
   color: var(--on-night);
 }
 
-/* the interactive piece of a page, just above the controls */
+/* the interactive piece of a page: under the text box, or just above the controls (placed by tutorialView.ts) */
 .tut-extra {
   position: absolute;
-  left: 50%;
-  bottom: calc(var(--pill-b) + var(--pill-h) + 10px);
+  left: 12px;
+  top: 0;
   z-index: 6;
-  transform: translateX(-50%);
-  width: min(500px, calc(100% - 24px));
-  max-height: calc(100% - var(--pill-b) - var(--pill-h) - 140px);
-  overflow-y: auto;
+  box-sizing: border-box;
+  width: var(--col-w);
   padding: 12px 14px;
   border-radius: 16px;
   background: var(--paper);
@@ -1316,19 +1346,82 @@ var {
   margin-bottom: 0 !important;
 }
 
+/* the shot buttons bottom left and the caption bottom right, beside the controls */
 .tut-stage .stage-caption {
-  right: auto;
+  left: auto;
+  right: 12px;
   bottom: var(--pill-b);
-  max-width: min(400px, calc(50% - 215px));
+  max-width: min(420px, calc(50% - 232px));
 }
 
 .tut-stage .stage-controls {
   top: auto;
-  bottom: calc(var(--pill-b) + 52px);
+  bottom: calc(var(--pill-b) + 10px);
   left: 12px;
   right: auto;
-  max-width: calc(50% - 230px);
+  max-width: min(var(--col-w), calc(50% - 232px));
   justify-content: flex-start;
+}
+
+/* the step mode (page 6): one button and the beat in words */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.step-btn {
+  min-width: 10em;
+}
+
+.step-status {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.step-status code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--sand-2);
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+/* the legend (page 8): code ↔ picture */
+.legend .card-title {
+  margin: 0 0 6px;
+}
+
+.legend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.legend-table td {
+  padding: 4px 4px;
+  border-top: 1px solid var(--sand-3);
+  vertical-align: top;
+}
+
+.legend-table tr:first-child td {
+  border-top: 0;
+}
+
+.lg-code {
+  font-weight: 700;
+  width: 42%;
+}
+
+.lg-arrow {
+  width: 1.4em;
+  text-align: center;
+  color: var(--ember);
+  font-weight: 800;
 }
 
 .skip {
@@ -2811,7 +2904,7 @@ var {
     gap: 10px;
   }
 
-  /* phones: the bubble over the stage, the controls at its bottom, the code and the interactive card below */
+  /* phones: the stage with the controls at its bottom; under it the text box, the code and the interactive card */
   .tut-screen {
     --pill-b: 10px;
     --pill-h: 50px;
@@ -2826,19 +2919,28 @@ var {
     flex: 1 0 auto;
   }
 
-  /* at least 70% of the screen; all of what is left when nothing comes below it */
+  /* about half the screen, so the text box under it shows without scrolling */
   .tut-stage {
     position: relative;
     inset: auto;
-    flex: 1 0 auto;
-    min-height: max(400px, min(70dvh, 620px));
+    flex: 0 0 auto;
+    height: clamp(330px, 52dvh, 520px);
   }
 
-  .tut-bubble {
-    max-width: min(300px, calc(100% - 20px));
+  /* the text box: static under the stage (its height is that of the longest page text, set by tutorialView.ts) */
+  .tut-narr {
+    position: relative;
+    flex: 0 0 auto;
+    margin: 10px 8px 0;
+    box-shadow: 0 4px 14px rgba(6, 8, 24, 0.18);
   }
 
-  .tut-bubble-text {
+  .tut-narr-measure {
+    position: absolute;
+    margin: 0;
+  }
+
+  .tut-narr-text {
     padding: 11px 14px 12px;
     font-size: 14.5px;
     line-height: 1.55;
@@ -2846,13 +2948,29 @@ var {
 
   .tut-extra {
     position: static;
-    transform: none;
-    width: auto;
+    width: auto !important;
     max-height: none;
     overflow: visible;
     padding: 12px 16px 18px;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  /* the chapter over the page number */
+  .tc-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+    font-size: 12.5px;
+  }
+
+  .tc-chapter {
+    font-size: 11px;
+  }
+
+  .tc-dot {
+    display: none;
   }
 
   .tc-prev {
@@ -2888,6 +3006,7 @@ var {
   .tut-code {
     position: static;
     width: auto;
+    margin-top: 10px;
     padding: 8px 12px 2px;
     border-radius: 0;
     box-shadow: none;
@@ -2962,7 +3081,8 @@ var {
   }
 
   .l3-v.state small,
-  .l3-v.ghost small {
+  .l3-v.ghost small,
+  .tut-stage .l3-v small {
     display: block;
   }
 }

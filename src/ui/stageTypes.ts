@@ -1,8 +1,6 @@
 // Types shared by the stage host (main bundle) and the three.js renderer (lazy chunk).
 import type { Bad, StageScene } from '../core/stage.ts';
 import type { State } from '../core/sim.ts';
-import type { Callout } from '../core/tutorial.ts';
-import type { WalkerSpot } from './bubble.ts';
 
 export interface StageText {
   ground: string;
@@ -17,7 +15,6 @@ export interface StageText {
   flat: string;
   up: string;
   below: string;
-  callouts: Record<Callout, string>;
   yes: string;
   no: string;
   /** The last check of a run: "false → loop ends, to the exit". */
@@ -36,6 +33,9 @@ export interface PlayInfo {
   holds?: boolean;
   state?: State;
   v?: bigint[] | null;
+  /** A step: the state after the body ran (and its steps left), which the HUD shows. */
+  after?: State;
+  afterV?: bigint[] | null;
   bad?: Bad;
   steps?: number;
   /** The first pass of this scene (not a replay loop). */
@@ -44,17 +44,55 @@ export interface PlayInfo {
 
 export type SoundKind = 'step' | 'land' | 'fail' | 'fall';
 
+/** Space kept free around the scene, in px of the stage box (the tutorial's text box, the code card, the controls). */
+export interface Insets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/** Freeze the run at a beat: the start, the i-th loop check (decided), or the check that fails. */
+export type StageHold = { at: 'start' } | { at: 'check'; i: number } | { at: 'lastCheck' };
+
+/** Something on the stage a ring can be drawn around (SPEC_v0.6 §C). */
+export type StageTarget = 'walker' | 'stairHere' | 'check' | 'door' | 'ruler' | 'mark' | 'ring' | 'zone' | 'railing' | 'ghost';
+
+/** A rectangle in px of the stage box. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface ShowOptions {
   /** Play the walk again and again (default true). */
   loop?: boolean;
   /** Sounds on the first pass. */
   sound?: boolean;
-  callouts?: Callout[];
   onBeat?: (b: PlayInfo) => void;
   /** Camera distance multiplier (title: further away). */
   zoom?: number;
-  /** Move the subject down by this fraction of the stage's height (negative: up). */
-  drop?: number;
+  /** Frame the scene inside the stage minus these insets. */
+  inset?: Insets;
+  /** Boxes over the stage (px of the stage box) that labels must keep out of: they move off them or hide. */
+  keepOut?: Rect[];
+  /** Freeze at a beat instead of playing. */
+  hold?: StageHold;
+  /** Step mode: held at the start; `step()` plays one beat and holds again. */
+  step?: boolean;
+  /** `all`: always fit the whole scene (no following camera, except down a bottomless shaft). */
+  frame?: 'auto' | 'all';
+  /** Show every flat/up/below mark at once (default: only the one where the walker is). */
+  allMarks?: boolean;
+}
+
+/** Where a run stands in step mode or on a held page. */
+export interface HoldState {
+  held: boolean;
+  /** Step mode: the walk is over (the walker went out by the door). */
+  done: boolean;
 }
 
 export interface StageRenderer {
@@ -64,8 +102,13 @@ export interface StageRenderer {
   setActive(on: boolean): void;
   resize(): void;
   dispose(): void;
-  /** The walker's head and feet in pixels of the stage box, as of the last frame; null when hidden or off screen. */
-  walkerSpot(): WalkerSpot | null;
+  /** Change the insets (and the boxes labels keep out of) without restarting the run. */
+  setInset(inset: Insets | undefined, keepOut?: Rect[]): void;
+  /** Step mode: play the next beat; false when there is none. */
+  step(): boolean;
+  holdState(): HoldState;
+  /** A focus target in px of the stage box, as of the last frame; null when it is not on screen. */
+  focusRect(target: StageTarget): Rect | null;
 }
 
 export interface RendererHooks {

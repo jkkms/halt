@@ -8,9 +8,8 @@ import { sfx } from './audio.ts';
 import { clear, h } from './dom.ts';
 import { rank, stateShort } from './format.ts';
 import { t } from './i18n.ts';
-import type { SoftKind, WalkerSpot } from './bubble.ts';
 import { Scene as FlatScene, type SceneModel } from './scene.ts';
-import type { PlayInfo, ShowOptions, StageRenderer, StageText } from './stageTypes.ts';
+import type { HoldState, Insets, PlayInfo, Rect, ShowOptions, StageRenderer, StageTarget, StageText } from './stageTypes.ts';
 
 export interface HostOptions extends ShowOptions {
   caption?: string;
@@ -38,7 +37,6 @@ export function stageText(): StageText {
     flat: t('stFlat'),
     up: t('stUp'),
     below: t('stBelow'),
-    callouts: { ground: t('coGround'), basement: t('coBasement'), walker: t('coWalker'), door: t('coDoor'), stair: t('coStair') },
     yes: t('stYes'),
     no: t('stNo'),
     exitCheck: t('stExitCheck'),
@@ -130,37 +128,36 @@ export class StageHost {
     else this.flat?.replay();
   }
 
-  /** The walker's head and feet in pixels of the stage box; null when unknown (loading, flat drawing, off screen). */
-  walkerSpot(): WalkerSpot | null {
-    return this.renderer?.walkerSpot() ?? null;
+  /** The flat drawing is on (no WebGL): it does not play beats, hold or step. */
+  isFlat(): boolean {
+    return !!this.flat;
   }
 
-  /**
-   * The stage's own boxes over the drawing, for things floating over it (the tutorial's speech bubble): its words
-   * (the callouts, the exit sign, the caption, the railing and zone signs), its numbers (the step badges, the ruler)
-   * and its buttons (the step counter, the shot buttons). The loop-check bubble is left out: it comes and goes, and
-   * the speech bubble keeps clear of where it will be anyway.
-   */
-  overlays(): { rect: DOMRect; kind: SoftKind }[] {
-    const out: { rect: DOMRect; kind: SoftKind }[] = [];
-    const add = (el: HTMLElement, kind: SoftKind) => {
-      if (el.hidden || !el.childNodes.length || el.style.display === 'none') return;
-      const r = el.getBoundingClientRect();
-      if (r.width && r.height) out.push({ rect: r, kind });
-    };
-    add(this.hud, 'ui');
-    add(this.controlsEl, 'ui');
-    add(this.captionEl, 'text');
-    for (const el of this.layer.querySelectorAll<HTMLElement>('.l3:not(.l3-check)')) add(el, el.matches('.l3-v, .l3-tick, .l3-inf, .l3-more') ? 'number' : 'text');
-    return out;
+  /** Frame the scene inside these insets (px of the stage box) without restarting the run. */
+  setInset(inset: Insets | undefined, keepOut?: Rect[]): void {
+    if (this.current) this.current.opts = { ...this.current.opts, inset, keepOut };
+    this.renderer?.setInset(inset, keepOut);
   }
 
-  /** The size of the loop-check bubble over the walker's head while it is shown; null otherwise. */
-  checkSize(): { w: number; h: number } | null {
-    const el = this.layer.querySelector<HTMLElement>('.l3-check');
-    if (!el || el.style.display === 'none') return null;
-    const r = el.getBoundingClientRect();
-    return r.width && r.height ? { w: r.width, h: r.height } : null;
+  /** Step mode: play the next beat (false when there is none, or on the flat drawing). */
+  step(): boolean {
+    return this.renderer?.step() ?? false;
+  }
+
+  holdState(): HoldState {
+    return this.renderer?.holdState() ?? { held: true, done: false };
+  }
+
+  /** A focus target on the stage in px of the stage box; null when it is not on screen (or on the flat drawing). */
+  focusRect(target: StageTarget): Rect | null {
+    return this.renderer?.focusRect(target) ?? null;
+  }
+
+  /** Show a beat in the step counter without the renderer (the flat drawing in the tutorial's step mode). */
+  hudBeat(info: PlayInfo): void {
+    const cur = this.current;
+    if (!cur || cur.opts.hud === false) return;
+    this.hud.replaceChildren(...hudParts(cur.scene, info));
   }
 
   relang(): void {
@@ -187,9 +184,12 @@ export class StageHost {
 function hudParts(scene: StageScene, b: PlayInfo): Node[] {
   if (scene.k === 'idle' || !b.state) return [];
   const steps = b.kind === 'step' ? b.k + 1 : b.kind === 'exit' ? (b.steps ?? b.k) : b.k;
+  // a step shows the state after the body ran (the walker is on its way to that stair)
+  const state = b.kind === 'step' && b.after ? b.after : b.state;
+  const v = b.kind === 'step' && b.after ? b.afterV : b.v;
   const parts: Node[] = [h('span', { class: 'hud-step' }, t('stepCounter', { k: steps }))];
-  parts.push(h('span', { class: 'hud-state' }, fmtState(scene.vars, b.state)));
-  if (b.v) parts.push(h('span', { class: 'hud-v' }, t('hudLeft', { v: rank(b.v).replace(/-/g, '−') })));
+  parts.push(h('span', { class: 'hud-state' }, fmtState(scene.vars, state)));
+  if (v) parts.push(h('span', { class: 'hud-v' }, t('hudLeft', { v: rank(v).replace(/-/g, '−') })));
   if (b.kind === 'exit') parts.push(h('span', { class: 'hud-done' }, t('hudEnded', { k: b.steps ?? 0 })));
   return parts;
 }

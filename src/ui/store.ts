@@ -20,7 +20,7 @@ export interface Saved {
   best: Record<string, number>;
   /** v0.3: the 8-page tutorial was read to the end ('done') or skipped. */
   tutorial?: 'done' | 'skipped';
-  /** v0.3: levels whose first visit already showed something (1: the tutorial suggestion; 9, 10: their intro). */
+  /** v0.3: levels whose first visit already showed something (1: the tutorial suggestion; 5, 7, 10: their intro). */
   introsShown: number[];
   current?: number;
   daily: Record<string, DailyRecord>;

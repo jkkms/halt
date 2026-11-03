@@ -1,55 +1,75 @@
-// The tutorial player (SPEC_v0.5 §B): the stage full screen and the walker speaks. The page text is a speech
-// bubble whose tail follows the walker's head; Back, the page counter, Next and Skip stay still in a pill at the
-// bottom of the stage, and a page's interactive piece floats in a small card above it (under the stage on phones).
-// The same player shows the 8-page tutorial and the short intros before levels 7 and 10.
+// The tutorial player (SPEC_v0.6, with the author's change to §A): the stage fills the screen; the page text sits
+// in a still text box (upper left on a wide screen, under the stage on a phone) that has the same place and size on
+// every page; amber rings show what the text talks about. Back, the chapter and page counter, Next and Skip stay
+// still in a pill at the bottom of the stage; a page's interactive piece sits in a card under the text box (or just
+// above the pill when there is no room; under the stage on phones). The same player shows the 14-page tutorial and
+// the short intros before levels 5, 7 and 10.
 import { ExprError } from '../core/expr.ts';
 import { proofLength, parseV } from '../core/game.ts';
 import { codePreview, recommendedNext } from '../core/groups.ts';
-import { levelById } from '../core/levels.ts';
+import { levelById, type TutorialKey } from '../core/levels.ts';
 import { runScene, type StageScene } from '../core/stage.ts';
-import { introFor, program, richParts, sceneStart, TUTORIAL, tutScene, type TutPage } from '../core/tutorial.ts';
+import {
+  CHAPTERS,
+  focusOf,
+  heldBeat,
+  INTROS,
+  introFor,
+  program,
+  richParts,
+  sceneStart,
+  shotProgram,
+  STAGE_FOCUS,
+  stepBeats,
+  TUTORIAL,
+  tutScene,
+  type Focus,
+  type Hold,
+  type StepBeat,
+  type TutPage,
+} from '../core/tutorial.ts';
 import type { App, Screen } from './app.ts';
-import { bubblePath, overlap, placeBubble, tailFor, type Box, type Pt, type Side, type WalkerSpot } from './bubble.ts';
 import { chipBar } from './chips.ts';
 import { codeView, follow, type CodeView } from './code.ts';
-import { h, s as svg } from './dom.ts';
+import { h } from './dom.ts';
 import { errorText } from './errors.ts';
 import { pretty, starsText } from './format.ts';
 import { lang, t } from './i18n.ts';
-import type { PlayInfo } from './stageTypes.ts';
+import type { Insets, PlayInfo, StageHold, StageTarget } from './stageTypes.ts';
+import { boxWidth, cardWidth, deskLayout, maxBoxHeight, phoneInset, ringBox, textBox, type Box } from './tutLayout.ts';
 
 export type TutorialMode = { k: 'tutorial' } | { k: 'intro'; level: number; returnTo: string };
 
 /** If the stage sends no beats (the flat drawing), multi-shot pages move on after this long. */
 const FALLBACK_MS = 6500;
-/** The walker vanishes into the door at the end of every walk; the bubble waits where it was this long. */
-const HOLD_MS = 1600;
-/** After a page change the bubble jumps to its place (no glide) for this long. */
-const SNAP_MS = 220;
-/** A new spot further than this from where the bubble is: it pops there instead of gliding. */
-const JUMP_PX = 120;
-/** The walker's head moved further than this in one frame: a new shot, not a step (no smoothing). */
-const TELEPORT_PX = 60;
+/** Phones and narrow windows: the text box and the cards go under the stage (matches the CSS). */
+const NARROW = '(max-width: 760px)';
+/** Text sizes to try, largest first, until the longest page fits the box without scrolling. */
+const FONT_STEPS = ['', 'fs1', 'fs2', 'fs3'];
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const lerpPt = (a: Pt, b: Pt, t: number): Pt => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
+/** Every page the box must fit: the tutorial and all intros share one box. */
+const ALL_PAGES: TutPage[] = [...TUTORIAL, ...Object.values(INTROS).flatMap((i) => i.pages)];
 
-/** The speech bubble: a rounded outline with its tail (one SVG path) behind the page text. */
-interface Bubble {
-  el: HTMLElement;
-  body: HTMLElement;
-  shape: SVGSVGElement;
-  path: SVGPathElement;
-  text: HTMLElement;
+const rich = (s: string) => richParts(s).map((part) => (part.kind === 'bold' ? h('strong', {}, part.s) : part.kind === 'code' ? h('code', {}, part.s) : part.s));
+
+const toHold = (hold: Hold): StageHold => (hold === 'start' ? { at: 'start' } : hold === 'lastCheck' ? { at: 'lastCheck' } : { at: 'check', i: Number(hold.split(':')[1]) });
+
+/** A beat of the step mode as the stage reports beats (for the code card and the step counter). */
+function playInfo(b: StepBeat): PlayInfo {
+  switch (b.kind) {
+    case 'start':
+      return { kind: 'start', k: 0, lines: [], state: b.state, first: true };
+    case 'check':
+      return { kind: 'guard', k: b.k, lines: b.lines, holds: b.holds, state: b.state, first: true };
+    case 'step':
+      return { kind: 'step', k: b.k - 1, lines: b.lines, state: b.state, after: b.state, first: true };
+    case 'exit':
+      return { kind: 'exit', k: b.k, lines: [], steps: b.ended, state: b.state, first: true };
+  }
 }
 
-function makeBubble(): Bubble {
-  const path = svg('path', { class: 'tut-bubble-line' });
-  const shape = svg('svg', { class: 'tut-bubble-shape', 'aria-hidden': 'true' }, path);
-  const text = h('p', { class: 'tut-bubble-text', 'aria-live': 'polite' });
-  const body = h('div', { class: 'tut-bubble-body' }, shape, text);
-  return { el: h('div', { class: 'tut-bubble' }, body), body, shape, path, text };
-}
+const sameInset = (a: Insets | undefined, b: Insets) => !!a && a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
+const round = (i: Insets): Insets => ({ top: Math.round(i.top), right: Math.round(i.right), bottom: Math.round(i.bottom), left: Math.round(i.left) });
 
 export class TutorialScreen implements Screen {
   el: HTMLElement;
@@ -58,30 +78,41 @@ export class TutorialScreen implements Screen {
   private pages: TutPage[];
   private page: number;
   private shot = 0;
+  private main = h('div', { class: 'tut-main' });
   private stageBox = h('div', { class: 'tut-stage' });
-  private codeBox = h('div', { class: 'tut-code' });
-  /** The page's interactive piece (verdict buttons, the try-it box, the level card). */
-  private extraBox = h('div', { class: 'tut-extra' });
+  private codeBox = h('div', { class: 'tut-code', 'data-role': 'code-card' });
+  /** The page's interactive piece (verdict buttons, the try-it box, the step button, the legend, the level card). */
+  private extraBox = h('div', { class: 'tut-extra', 'data-role': 'extra' });
   private controls = h('nav', { class: 'tut-controls' });
-  private bubble = makeBubble();
+  /** The page text: one still box. */
+  private narrText = h('p', { class: 'tut-narr-text', 'aria-live': 'polite' });
+  private narr = h('div', { class: 'tut-narr', 'data-role': 'narration' }, this.narrText);
+  /** An invisible copy of the box, to measure the longest page text. */
+  private measureText = h('p', { class: 'tut-narr-text' });
+  private measure = h('div', { class: 'tut-narr tut-narr-measure', 'aria-hidden': 'true' }, this.measureText);
+  private rings = h('div', { class: 'tut-rings', 'aria-hidden': 'true' });
   private code: CodeView | null = null;
+  private codeProg: TutorialKey | null = null;
   private tryText = '';
   /** The drawing from the page's input box (null: the page's own shots). */
   private custom: { scene: StageScene; caption: string } | null = null;
   private beatSeen = false;
   private fallback: ReturnType<typeof setTimeout> | null = null;
-  // following the walker
+  // held pages and the step mode
+  private beats: StepBeat[] | null = null;
+  private stepIdx = 0;
+  private stepBtn: HTMLButtonElement | null = null;
+  private stepStatus: HTMLElement | null = null;
+  // layout
   private raf = 0;
-  private lastFrame = 0;
-  private seen: { spot: WalkerSpot; at: number } | null = null;
-  private smooth: WalkerSpot | null = null;
-  private box: Box | null = null;
-  private side: Side | undefined;
-  private slot: string | undefined;
-  /** The widest loop-check bubble the stage has shown on this page (the bubble's tail keeps off it). */
-  private check: { w: number; h: number } | undefined;
-  private wasFallback = true;
-  private snapUntil = 0;
+  private ro: ResizeObserver | null = null;
+  private layoutKey = '';
+  private boxH = 0;
+  private font = '';
+  private inset: Insets | undefined;
+  /** What labels on the stage keep out of: the text box and the cards over the stage. */
+  private keepOut: Box[] = [];
+  private keptKey = '';
   private onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === 'ArrowRight') this.go(this.page + 1);
@@ -103,6 +134,8 @@ export class TutorialScreen implements Screen {
     this.stopFallback();
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.ro?.disconnect();
+    this.ro = null;
   }
 
   private title(): string {
@@ -114,16 +147,33 @@ export class TutorialScreen implements Screen {
   private build(): void {
     const back = this.mode.k === 'tutorial' ? { label: t('backTitle'), href: '#/' } : { label: t('levelN', { n: this.mode.level }), href: this.mode.returnTo };
     const bar = this.app.bar({ back, title: this.title(), dark: true });
-    this.stageBox.replaceChildren(this.bubble.el, this.controls);
-    this.el.replaceChildren(bar, h('div', { class: 'tut-main' }, this.stageBox, this.codeBox, this.extraBox));
+    this.stageBox.replaceChildren(this.controls);
+    this.main.replaceChildren(this.stageBox, this.narr, this.codeBox, this.extraBox, this.rings, this.measure);
+    this.el.replaceChildren(bar, this.main);
+    this.layoutKey = '';
   }
 
   shown(): void {
     this.app.stage.mount(this.stageBox);
+    this.stageBox.prepend(this.app.stage.el);
     this.renderPage();
     cancelAnimationFrame(this.raf);
-    this.lastFrame = performance.now();
     this.raf = requestAnimationFrame(this.frame);
+    this.ro?.disconnect();
+    this.ro = new ResizeObserver(() => this.relayout());
+    this.ro.observe(this.main);
+    // the box is measured with the real font once it is in (hidden until then, so it never changes size in view)
+    const fonts = document.fonts;
+    if (fonts && fonts.status !== 'loaded') {
+      this.narr.classList.add('waiting');
+      const done = () => {
+        this.narr.classList.remove('waiting');
+        this.layoutKey = '';
+        this.relayout();
+      };
+      void fonts.ready.then(done);
+      setTimeout(done, 1500);
+    }
   }
 
   relang(): void {
@@ -151,33 +201,27 @@ export class TutorialScreen implements Screen {
     const p = this.current();
     const L = lang();
     if (this.mode.k === 'tutorial' && this.last()) this.markTutorial('done');
-    // code beside the stage
-    const prog = p.code ? program(p.code) : null;
-    this.code = prog ? codeView(prog) : null;
-    const facts = prog && prog.facts !== 'true' ? pretty(prog.factsText ?? prog.facts) : null;
-    const codeKids: HTMLElement[] = [];
-    if (prog && this.code) codeKids.push(this.code.el);
-    if (facts) codeKids.push(h('p', { class: 'tut-code-facts' }, `${t('facts')}: `, h('code', {}, facts)));
-    this.codeBox.replaceChildren(...codeKids);
-    this.codeBox.hidden = !prog;
-    this.el.classList.toggle('has-code', !!prog);
+    // the page text; the box stays where it is, only the words change (a gentle fade)
+    this.narrText.replaceChildren(...rich(p.text[L]));
+    this.narrText.classList.remove('fade');
+    void this.narrText.offsetWidth;
+    this.narrText.classList.add('fade');
+    this.narr.dataset.page = String(this.page + 1);
 
-    // the page text in the bubble; it pops in at its new place
-    this.bubble.text.replaceChildren(...richParts(p.text[L]).map((part) => (part.kind === 'bold' ? h('strong', {}, part.s) : part.kind === 'code' ? h('code', {}, part.s) : part.s)));
-    this.seen = null;
-    this.smooth = null;
-    this.slot = undefined;
-    this.check = undefined;
-    this.snapUntil = performance.now() + SNAP_MS;
-    this.pop();
+    // a held page or the step mode: the beats of its run, from the simulator
+    const sc = p.shots[0]!.scene;
+    this.beats = (p.hold || p.step) && sc.k === 'run' ? stepBeats(program(sc.prog), sceneStart(sc)) : null;
+    this.stepIdx = 0;
+    this.stepBtn = null;
+    this.stepStatus = null;
 
+    this.codeProg = null;
     const extra = this.extra(p);
     this.extraBox.replaceChildren(...(extra ? [extra] : []));
     this.extraBox.hidden = !extra;
     this.el.classList.toggle('has-extra', !!extra);
-    this.showShot(0);
 
-    // the controls stay still at the bottom of the stage
+    // the controls stay still at the bottom of the stage: Back, chapter · page, Next, Skip
     const n = this.pages.length;
     const prev = h('button', { type: 'button', class: 'tc-prev', 'data-role': 'prev', disabled: this.page === 0, onclick: () => this.go(this.page - 1) }, `← ${t('prevPage')}`);
     const target = this.mode.k === 'tutorial' ? 1 : this.mode.level;
@@ -185,80 +229,11 @@ export class TutorialScreen implements Screen {
       ? h('button', { type: 'button', class: 'btn primary tc-next', 'data-role': 'finish', onclick: () => this.finish() }, `${t('startLevelN', { n: target })} →`)
       : h('button', { type: 'button', class: 'btn primary tc-next', 'data-role': 'next', onclick: () => this.go(this.page + 1) }, `${t('nextPage')} →`);
     const skip = this.last() ? null : h('button', { type: 'button', class: 'skip', 'data-role': 'skip', onclick: () => this.skip() }, t('skip'));
-    this.controls.replaceChildren(prev, h('span', { class: 'tc-count', 'data-role': 'count' }, t('pageOf', { i: this.page + 1, n })), next, ...(skip ? [skip] : []));
+    const chapter = p.chapter ? h('span', { class: 'tc-chapter', 'data-role': 'chapter' }, CHAPTERS[p.chapter][L]) : null;
+    const count = h('span', { class: 'tc-count', 'data-role': 'count' }, ...(chapter ? [chapter, h('span', { class: 'tc-dot' }, ' · ')] : []), h('span', { class: 'tc-num' }, t('pageOf', { i: this.page + 1, n })));
+    this.controls.replaceChildren(prev, count, next, ...(skip ? [skip] : []));
+    this.showShot(0);
   }
-
-  // ------------------------------------------------------------ the speech bubble
-
-  /** Restart the pop-in animation. */
-  private pop(): void {
-    const b = this.bubble.body;
-    b.classList.remove('pop');
-    void b.offsetWidth;
-    b.classList.add('pop');
-  }
-
-  /** Every frame: ask the stage where the walker is and move the bubble there. */
-  private frame = (now: number): void => {
-    this.raf = requestAnimationFrame(this.frame);
-    const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
-    this.lastFrame = now;
-    const host = this.stageBox.getBoundingClientRect();
-    const b = this.bubble;
-    const size = { w: b.el.offsetWidth, h: b.el.offsetHeight };
-    if (!host.width || !host.height || !size.w) return;
-    // where the walker is, or was a moment ago (it vanishes into the door at the end of every walk)
-    const spot = this.app.stage.walkerSpot();
-    if (spot) this.seen = { spot, at: now };
-    const walker = spot ?? (this.seen && now - this.seen.at < HOLD_MS ? this.seen.spot : null);
-    const snap = now < this.snapUntil;
-    // the walk bobs a little at every step: follow the head through a short low-pass
-    // (a new shot puts the walker somewhere else at once: no gliding over there)
-    if (!walker) this.smooth = null;
-    else if (!this.smooth || snap || Math.hypot(walker.head.x - this.smooth.head.x, walker.head.y - this.smooth.head.y) > TELEPORT_PX) this.smooth = walker;
-    else {
-      const k = 1 - Math.exp(-dt * 40);
-      this.smooth = { head: lerpPt(this.smooth.head, walker.head, k), feet: lerpPt(this.smooth.feet, walker.feet, k) };
-    }
-    // keep clear of the code card, the controls and the interactive card; rather not cover the stage's own labels
-    const rel = (r: DOMRect): Box => ({ x: r.left - host.left, y: r.top - host.top, w: r.width, h: r.height });
-    const over = (x: Box) => x.w > 0 && x.h > 0 && x.x < host.width && x.y < host.height && x.x + x.w > 0 && x.y + x.h > 0;
-    const avoid = [this.codeBox, this.controls, this.extraBox].filter((el) => !el.hidden).map((el) => rel(el.getBoundingClientRect())).filter(over);
-    const soft = this.app.stage
-      .overlays()
-      .map((o) => ({ ...rel(o.rect), kind: o.kind }))
-      .filter(over);
-    const check = this.app.stage.checkSize();
-    if (check) this.check = { w: Math.max(check.w, this.check?.w ?? 0), h: Math.max(check.h, this.check?.h ?? 0) };
-    const place = placeBubble({ stage: { w: host.width, h: host.height }, walker: this.smooth, size, avoid, soft, side: this.side, slot: this.slot, check: this.check });
-    // a jump to the other side of the walker, to or from the fixed spot, or to a spot far away pops (gliding there
-    // would sweep across the labels in between); following the walker glides
-    const far = !!this.box && Math.hypot(place.box.x - this.box.x, place.box.y - this.box.y) > JUMP_PX;
-    const jump = !this.box || snap || far || place.side !== this.side || place.fallback !== this.wasFallback;
-    if (jump && this.box && !snap) this.pop();
-    this.side = place.side;
-    this.slot = place.slot;
-    this.wasFallback = place.fallback;
-    const k = jump ? 1 : 1 - Math.exp(-dt * 10);
-    const prev = this.box ?? place.box;
-    this.box = { x: lerp(prev.x, place.box.x, k), y: lerp(prev.y, place.box.y, k), w: size.w, h: size.h };
-    // gliding never slides it over the code card, the controls or the card (its new place is clear of them)
-    if (avoid.some((a) => overlap(this.box!, a) > 0)) this.box = { ...place.box };
-    // the tip stays at the head; at the fixed spot it moves with the box
-    const tip = place.fallback ? { x: place.tip.x - place.box.x + this.box.x, y: place.tip.y - place.box.y + this.box.y } : place.tip;
-    const tail = tailFor(this.box, tip, place.side);
-    b.el.style.transform = `translate(${this.box.x.toFixed(1)}px, ${this.box.y.toFixed(1)}px)`;
-    b.shape.setAttribute('width', String(size.w));
-    b.shape.setAttribute('height', String(size.h));
-    b.path.setAttribute('d', bubblePath(size.w, size.h, tail));
-    if (tail) b.body.style.transformOrigin = `${tail.tip.x.toFixed(0)}px ${tail.tip.y.toFixed(0)}px`;
-    // for the checks (Playwright): where the head is and where the tail ends, in stage pixels
-    b.el.dataset.side = place.side;
-    b.el.dataset.fallback = String(place.fallback);
-    b.el.dataset.head = spot ? `${spot.head.x.toFixed(1)},${spot.head.y.toFixed(1)}` : '';
-    b.el.dataset.tip = tail ? `${tip.x.toFixed(1)},${tip.y.toFixed(1)}` : '';
-    b.el.classList.add('placed');
-  };
 
   // ------------------------------------------------------------ the stage
 
@@ -267,12 +242,25 @@ export class TutorialScreen implements Screen {
     this.fallback = null;
   }
 
+  /** The code card shows the program on the stage (it changes with the shot on page 9). */
+  private showCode(key: TutorialKey): void {
+    if (this.codeProg === key) return;
+    this.codeProg = key;
+    const prog = program(key);
+    this.code = codeView(prog);
+    const facts = prog.facts !== 'true' ? pretty(prog.factsText ?? prog.facts) : null;
+    const kids: HTMLElement[] = [this.code.el];
+    if (facts) kids.push(h('p', { class: 'tut-code-facts' }, `${t('facts')}: `, h('code', {}, facts)));
+    this.codeBox.replaceChildren(...kids);
+  }
+
   /** Show shot i of the page (or the drawing typed in the page's input box). */
   private showShot(i: number): void {
     const p = this.current();
     const L = lang();
     this.shot = ((i % p.shots.length) + p.shots.length) % p.shots.length;
     const sh = p.shots[this.shot]!;
+    this.showCode(shotProgram(sh));
     const scene = this.custom?.scene ?? tutScene(sh.scene);
     const caption = this.custom?.caption ?? sh.label?.[L];
     const many = p.shots.length > 1 && !this.custom;
@@ -289,24 +277,26 @@ export class TutorialScreen implements Screen {
     this.stopFallback();
     if (many) this.fallback = setTimeout(() => this.fallbackNext(), FALLBACK_MS);
     for (const b of this.extraBox.querySelectorAll<HTMLElement>('[data-hl-shot]')) b.classList.toggle('hl', Number(b.dataset.hlShot) === this.shot);
+    const held = !this.custom && p.hold ? toHold(p.hold) : undefined;
     this.app.stage.show(scene, {
       caption,
-      callouts: this.custom ? undefined : sh.callouts,
       controls: pills,
       loop: true,
       sound: true,
       hud: scene.k !== 'idle' && !p.wide,
       zoom: p.wide ? 1.45 : undefined,
-      drop: this.drop(),
+      inset: this.inset,
+      keepOut: this.keepOut,
+      hold: held,
+      step: !this.custom && !!p.step,
+      frame: 'all',
+      allMarks: true,
       onBeat: (b) => this.beat(b),
     });
-  }
-
-  /** A tall stage (phones) leaves the top for the bubble; on a wide one the scene clears the floating card. */
-  private drop(): number {
-    const box = this.stageBox;
-    if (box.clientHeight > box.clientWidth) return 0.1;
-    return this.extraBox.hidden ? 0 : -0.07;
+    this.stageBox.dataset.shot = String(this.shot);
+    // what a held page shows (the stage reports the same beats; the flat drawing does not)
+    if (this.beats && !this.custom) this.apply(p.hold ? heldBeat(this.beats, p.hold) : this.beats[0]!);
+    this.relayout();
   }
 
   private beat(b: PlayInfo): void {
@@ -320,6 +310,252 @@ export class TutorialScreen implements Screen {
     this.fallback = null;
     if (!this.beatSeen) this.showShot(this.shot + 1);
   }
+
+  /** Show a beat of the step list: the lit code line, the status line, and (flat drawing) the step counter. */
+  private apply(b: StepBeat): void {
+    const info = playInfo(b);
+    if (this.code) follow(this.code, info);
+    // the 3-D stage reports the same beat when it gets there; the flat drawing never does
+    this.app.stage.hudBeat(info);
+    if (this.stepStatus) {
+      this.stepStatus.replaceChildren(...rich(b.status[lang()]));
+      this.stepStatus.dataset.beat = String(this.beats?.indexOf(b) ?? -1);
+    }
+  }
+
+  // ------------------------------------------------------------ step mode (page 6)
+
+  private stepPress(): void {
+    const beats = this.beats;
+    if (!beats) return;
+    const stage = this.app.stage;
+    const atEnd = this.stepIdx >= beats.length - 1;
+    if (stage.isFlat()) {
+      // no animation: the code card, the step counter and the status line still step
+      if (atEnd) this.stepIdx = 0;
+      else {
+        this.stepIdx++;
+        while (beats[this.stepIdx + 1]?.auto) this.apply(beats[this.stepIdx++]!);
+      }
+      this.apply(beats[this.stepIdx]!);
+      this.paintStep();
+      return;
+    }
+    const st = stage.holdState();
+    if (st.done || atEnd) {
+      stage.replay();
+      this.stepIdx = 0;
+      this.apply(beats[0]!);
+      this.paintStep();
+      return;
+    }
+    if (!st.held || !stage.step()) return;
+    this.stepIdx++;
+    this.apply(beats[this.stepIdx]!);
+    this.paintStep();
+  }
+
+  /** The step button: disabled while a beat plays; "From the start" once the walker is out. */
+  private paintStep(): void {
+    const btn = this.stepBtn;
+    const beats = this.beats;
+    if (!btn || !beats) return;
+    const stage = this.app.stage;
+    const flat = stage.isFlat();
+    const st = stage.holdState();
+    // the walk out of the door follows the check that fails without a press
+    if (!flat && st.done && beats[this.stepIdx + 1]?.auto) {
+      this.stepIdx++;
+      this.apply(beats[this.stepIdx]!);
+    }
+    const end = this.stepIdx >= beats.length - 1 && (flat || st.done);
+    const label = end ? t('stepAgain') : t('stepOne');
+    if (btn.textContent !== label) btn.textContent = label;
+    btn.dataset.state = end ? 'end' : 'step';
+    btn.disabled = !flat && !st.held;
+  }
+
+  // ------------------------------------------------------------ layout
+
+  private narrow(): boolean {
+    return matchMedia(NARROW).matches;
+  }
+
+  /** px of the main box */
+  private rel(r: DOMRect, base: DOMRect): Box {
+    return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
+  }
+
+  /** The tallest page text at this width (with the current font step). */
+  private tallest(width: number): number {
+    const m = this.measure;
+    m.style.width = `${width}px`;
+    let max = 0;
+    const L = lang();
+    for (const p of ALL_PAGES) {
+      this.measureText.replaceChildren(...rich(p.text[L]));
+      max = Math.max(max, m.offsetHeight);
+    }
+    return Math.ceil(max);
+  }
+
+  /**
+   * Place the text box (once per stage size and language: the same rect on every page), the page's card and the
+   * scene's insets. Called on every page and shot (the card, the code and the caption change), and on resize.
+   */
+  private relayout(): void {
+    const main = this.main;
+    const W = main.clientWidth;
+    const narrow = this.narrow();
+    const stageEl = this.stageBox;
+    const SW = stageEl.clientWidth;
+    const SH = stageEl.clientHeight;
+    if (!W || !SW || !SH) return;
+    const base = stageEl.getBoundingClientRect();
+    const pill = this.rel(this.controls.getBoundingClientRect(), base);
+    const key = `${narrow ? 'n' : 'w'}:${W}x${narrow ? 0 : SH}:${lang()}`;
+    if (key !== this.layoutKey) {
+      this.layoutKey = key;
+      const width = narrow ? W - 2 * 8 : boxWidth(SW);
+      const limit = narrow ? Infinity : maxBoxHeight(SH, pill);
+      for (const f of FONT_STEPS) {
+        this.font = f;
+        this.measure.className = `tut-narr tut-narr-measure ${f}`.trim();
+        this.boxH = this.tallest(width);
+        if (this.boxH <= limit) break;
+      }
+      this.narr.className = `tut-narr ${this.font}`.trim();
+      this.narr.style.height = `${this.boxH}px`;
+      if (narrow) {
+        this.narr.style.left = this.narr.style.top = this.narr.style.width = '';
+      } else {
+        const box = textBox({ w: SW, h: SH }, this.boxH);
+        this.narr.style.left = `${box.x}px`;
+        this.narr.style.top = `${box.y}px`;
+        this.narr.style.width = `${box.w}px`;
+      }
+      this.main.style.setProperty('--col-w', `${boxWidth(SW)}px`);
+    }
+    const ui = (sel: string): Box | null => {
+      const el = stageEl.querySelector<HTMLElement>(sel);
+      if (!el || el.hidden || !el.childNodes.length || getComputedStyle(el).display === 'none') return null;
+      const r = el.getBoundingClientRect();
+      return r.width && r.height ? this.rel(r, base) : null;
+    };
+    const shots = ui('.stage-controls');
+    const caption = ui('.stage-caption');
+    let inset: Insets;
+    let keepOut: Box[] = [];
+    const ex = this.extraBox;
+    if (narrow) {
+      ex.style.left = ex.style.top = ex.style.width = '';
+      ex.classList.remove('in-column', 'above-pill');
+      // the step counter's row, even before its first beat
+      const hud = ui('.stage-hud') ?? (this.current().wide ? null : { x: 8, y: 8, w: 120, h: 28 });
+      inset = phoneInset({ w: SW, h: SH }, [hud, shots], [pill, caption]);
+    } else {
+      const box = textBox({ w: SW, h: SH }, this.boxH);
+      let card: { h: number; hWide: number } | null = null;
+      if (!ex.hidden) {
+        ex.style.left = '0px';
+        ex.style.top = '0px';
+        ex.style.width = `${box.w}px`;
+        const hNarrow = ex.offsetHeight;
+        ex.style.width = `${cardWidth({ w: SW }, box)}px`;
+        card = { h: hNarrow, hWide: ex.offsetHeight };
+      }
+      const code = this.codeBox.hidden ? null : this.rel(this.codeBox.getBoundingClientRect(), base);
+      const L = deskLayout({ stage: { w: SW, h: SH }, box, code, pill, card, shots, caption });
+      if (L.card) {
+        ex.style.left = `${L.card.x}px`;
+        ex.style.top = `${L.card.y}px`;
+        ex.style.width = `${L.card.w}px`;
+        ex.classList.toggle('in-column', L.cardInColumn);
+        ex.classList.toggle('above-pill', !L.cardInColumn);
+      }
+      inset = L.inset;
+      // stage labels keep off the text box and the cards (a long walk scrolls past them)
+      keepOut = [box, ...(L.card ? [L.card] : []), ...(code ? [code] : [])].map((b) => ({ x: b.x - 4, y: b.y - 4, w: b.w + 8, h: b.h + 8 }));
+    }
+    inset = round(inset);
+    const kept = JSON.stringify(keepOut.map((b) => [b.x, b.y, b.w, b.h].map(Math.round)));
+    if (!sameInset(this.inset, inset) || kept !== this.keptKey) {
+      this.inset = inset;
+      this.keepOut = keepOut;
+      this.keptKey = kept;
+      this.app.stage.setInset(inset, keepOut);
+    }
+  }
+
+  // ------------------------------------------------------------ focus rings
+
+  private targets(): Focus[] {
+    return focusOf(this.current(), this.shot);
+  }
+
+  /** Where a focus target is, in px of the main box. */
+  private targetRect(f: Focus, base: DOMRect): Box | null {
+    const dom = (el: Element | null): Box | null => {
+      if (!el || (el as HTMLElement).hidden) return null;
+      const r = el.getBoundingClientRect();
+      return r.width && r.height ? this.rel(r, base) : null;
+    };
+    switch (f) {
+      case 'code':
+        return dom(this.codeBox);
+      case 'codeLine': {
+        const lit = [...this.codeBox.querySelectorAll('.code-line.run')].map((el) => dom(el)).filter((b): b is Box => !!b);
+        if (!lit.length) return null;
+        const x0 = Math.min(...lit.map((b) => b.x));
+        const y0 = Math.min(...lit.map((b) => b.y));
+        const x1 = Math.max(...lit.map((b) => b.x + b.w));
+        const y1 = Math.max(...lit.map((b) => b.y + b.h));
+        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      }
+      case 'hud': {
+        const hud = this.stageBox.querySelector<HTMLElement>('.stage-hud');
+        return hud && hud.childNodes.length ? dom(hud) : null;
+      }
+      case 'extra':
+        return dom(this.extraBox);
+      default: {
+        if (!STAGE_FOCUS.includes(f)) return null;
+        const r = this.app.stage.focusRect(f as StageTarget);
+        if (!r) return null;
+        const s = this.stageBox.getBoundingClientRect();
+        return { x: r.x + s.left - base.left, y: r.y + s.top - base.top, w: r.w, h: r.h };
+      }
+    }
+  }
+
+  /** Every frame: the rings follow their targets; the step button follows the stage. */
+  private frame = (): void => {
+    this.raf = requestAnimationFrame(this.frame);
+    const base = this.main.getBoundingClientRect();
+    const targets = this.targets();
+    const rings = this.rings;
+    while (rings.children.length < targets.length) rings.append(h('div', { class: 'tut-ring' }));
+    [...rings.children].forEach((el, i) => {
+      const ring = el as HTMLElement;
+      const f = targets[i];
+      const r = f ? this.targetRect(f, base) : null;
+      if (!f || !r) {
+        ring.hidden = true;
+        return;
+      }
+      const g = ringBox(r, f === 'codeLine' ? 3 : 6);
+      ring.hidden = false;
+      ring.dataset.target = f;
+      const css = `${g.x.toFixed(0)}px,${g.y.toFixed(0)}px,${g.w.toFixed(0)}px,${g.h.toFixed(0)}px`;
+      if (ring.dataset.box !== css) {
+        ring.dataset.box = css;
+        ring.style.transform = `translate(${g.x.toFixed(0)}px, ${g.y.toFixed(0)}px)`;
+        ring.style.width = `${g.w.toFixed(0)}px`;
+        ring.style.height = `${g.h.toFixed(0)}px`;
+      }
+    });
+    this.paintStep();
+  };
 
   // ------------------------------------------------------------ extras
 
@@ -371,7 +607,7 @@ export class TutorialScreen implements Screen {
     });
     const field = h('label', { class: 'try-field' }, h('span', { class: 'field-name' }, t('tryVLabel')), input);
     const chips = withChips ? chipBar({ vars: prog.vars, cond: false, tuple: false, target: () => input, example: false }) : null;
-    // Page 7 also carries the integer rules that the level screen no longer repeats.
+    // Page 13 also carries the integer rules that the level screen no longer repeats.
     return h('div', { class: 'try' }, field, status, chips, withChips ? h('p', { class: 'tut-note int-note' }, t('intDomain')) : null);
   }
 
@@ -391,6 +627,20 @@ export class TutorialScreen implements Screen {
           h('div', { class: 'verdicts' }, btn('v-ends', t('verdictEnds'), 0), btn('v-never', t('verdictNever'), 1), btn('v-nobody', t('verdictNobody'))),
           h('p', { class: 'help' }, t('verdictHelp')),
         );
+      }
+      case 'stepper': {
+        const btn = h('button', { type: 'button', class: 'btn primary step-btn', 'data-role': 'step', onclick: () => this.stepPress() }, t('stepOne')) as HTMLButtonElement;
+        const status = h('p', { class: 'step-status', 'data-role': 'step-status', 'aria-live': 'polite' });
+        this.stepBtn = btn;
+        this.stepStatus = status;
+        if (this.beats) status.replaceChildren(...rich(this.beats[0]!.status[lang()]));
+        return h('div', { class: 'stepper' }, btn, status);
+      }
+      case 'legend': {
+        const rows = ([1, 2, 3, 4, 5] as const).map((i) =>
+          h('tr', {}, h('td', { class: 'lg-code' }, t(`legendCode${i}`)), h('td', { class: 'lg-arrow', 'aria-hidden': 'true' }, '↔'), h('td', { class: 'lg-pic' }, t(`legendPic${i}`))),
+        );
+        return h('div', { class: 'legend' }, h('p', { class: 'card-title' }, t('legendTitle')), h('table', { class: 'legend-table' }, h('tbody', {}, ...rows)));
       }
       case 'levelCard': {
         const l = levelById(1);
