@@ -1,19 +1,25 @@
-// The cards of the rush mode: short loops to judge in 15 seconds (SPEC_rush). New loops only: none is a level or
-// a renamed copy of one, because rush shows the right verdict after every card. Verdicts are proved in
-// test/rush.test.ts with the real judge or by simulation; the reference proofs live in test/rushAnswers.ts.
+// The cards of the rush mode: short loops to judge in 5 seconds (SPEC_rush, SPEC_rush2). New loops only: none is a
+// level or a renamed copy of one, because rush shows the right verdict after every card. Verdicts are proved in
+// the tests with the real judge or by simulation; the reference proofs live in test/rushAnswers.ts and
+// test/rushBankAnswers.ts, never in the game.
 //
-// Tier 1: obvious. Tier 2: one trap. Tier 3: lookalike pairs and loops with two variables.
+// The 36 hand-written cards (ids 201–236) are below; the generated bank (ids 1001 and up) is in rushBank.ts,
+// written by scripts/gen-rush-cards.ts.
+// Tier 1: obvious. Tier 2: one trap. Tier 3: lookalike pairs and loops with two variables or more lines.
 // Cards with the same `pair` look alike, differ in one small thing, and get different verdicts.
+// `family` names the kind of loop; a run never shows two cards of a family within three positions.
 
 import { compileLevel, type Level, type Text } from './levels.ts';
+import { RUSH_BANK } from './rushBank.ts';
 
 export type RushVerdict = 'ends' | 'never';
 export type Tier = 1 | 2 | 3;
 
 export interface RushCardDef {
-  /** 201 and up, so a card never shares an id with a level or a tutorial program. */
+  /** 201–236 by hand, 1001 and up generated: never the id of a level or a tutorial program. */
   id: number;
   tier: Tier;
+  family: string;
   pair?: string;
   code: string;
   inputs: string[];
@@ -29,16 +35,18 @@ export interface RushCardDef {
 
 export interface RushCard extends Level {
   tier: Tier;
+  family: string;
   pair?: string;
   verdict: RushVerdict;
   why: Text;
 }
 
-const DEFS: RushCardDef[] = [
+export const HAND_DEFS: RushCardDef[] = [
   // ------------------------------------------------------------ tier 1: obvious
   {
     id: 201,
     tier: 1,
+    family: 'down',
     pair: 'step3',
     code: `while (x > 0) {
   x := x - 3
@@ -52,6 +60,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 202,
     tier: 1,
+    family: 'down',
     pair: 'step3',
     code: `while (x > 0) {
   x := x + 3
@@ -65,6 +74,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 203,
     tier: 1,
+    family: 'up',
     pair: 'to10',
     code: `while (k < 10) {
   k := k + 1
@@ -78,6 +88,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 204,
     tier: 1,
+    family: 'up',
     pair: 'to10',
     code: `while (k < 10) {
   k := k - 1
@@ -91,6 +102,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 205,
     tier: 1,
+    family: 'scale',
     code: `while (n >= 10) {
   n := n / 10
 }`,
@@ -103,6 +115,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 206,
     tier: 1,
+    family: 'guardvar',
     code: `while (n > 0) {
   m := m + 1
 }`,
@@ -118,6 +131,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 207,
     tier: 1,
+    family: 'scale',
     code: `while (x != 0) {
   x := x * 2
 }`,
@@ -130,6 +144,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 208,
     tier: 1,
+    family: 'guardvar',
     pair: 'guardvar',
     code: `while (a > 0) {
   a := a - 1
@@ -147,6 +162,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 209,
     tier: 1,
+    family: 'guardvar',
     pair: 'guardvar',
     code: `while (b > 0) {
   a := a - 1
@@ -166,6 +182,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 210,
     tier: 2,
+    family: 'neq',
     pair: 'down1',
     code: `while (x != 0) {
   x := x - 1
@@ -179,6 +196,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 211,
     tier: 2,
+    family: 'neq',
     pair: 'down1',
     code: `while (x != 0) {
   x := x - 1
@@ -192,6 +210,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 212,
     tier: 2,
+    family: 'neq',
     pair: 'by2',
     code: `while (x != 10) {
   x := x + 2
@@ -205,6 +224,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 213,
     tier: 2,
+    family: 'up',
     pair: 'by2',
     code: `while (x < 10) {
   x := x + 2
@@ -218,6 +238,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 214,
     tier: 2,
+    family: 'mod',
     pair: 'mod7',
     code: `while (x > 0) {
   x := x % 7
@@ -231,6 +252,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 215,
     tier: 2,
+    family: 'mod',
     pair: 'mod7',
     code: `while (x > 6) {
   x := x % 7
@@ -244,6 +266,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 216,
     tier: 2,
+    family: 'halve',
     pair: 'half',
     code: `while (x > 0) {
   x := x / 2
@@ -257,6 +280,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 217,
     tier: 2,
+    family: 'halve',
     pair: 'half',
     code: `while (x != 1) {
   x := x / 2
@@ -270,6 +294,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 218,
     tier: 2,
+    family: 'mod',
     pair: 'mod3',
     code: `while (x % 3 != 0) {
   x := x + 3
@@ -283,6 +308,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 219,
     tier: 2,
+    family: 'mod',
     pair: 'mod3',
     code: `while (x % 3 != 0) {
   x := x + 1
@@ -296,6 +322,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 220,
     tier: 2,
+    family: 'sqgrow',
     pair: 'sq50',
     code: `while (x * x < 50) {
   x := x + 1
@@ -309,6 +336,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 221,
     tier: 2,
+    family: 'sqgrow',
     pair: 'sq50',
     code: `while (x * x < 50) {
   x := -x
@@ -324,6 +352,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 222,
     tier: 3,
+    family: 'swap',
     pair: 'swap',
     code: `while (a > b) {
   t := a
@@ -342,6 +371,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 223,
     tier: 3,
+    family: 'swap',
     pair: 'swap',
     code: `while (a != b) {
   t := a
@@ -363,6 +393,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 224,
     tier: 3,
+    family: 'swap',
     pair: 'swap',
     code: `while (a != b) {
   a := b
@@ -380,6 +411,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 225,
     tier: 3,
+    family: 'sqgrow',
     pair: 'square',
     code: `while (x < 100) {
   x := x * x
@@ -393,6 +425,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 226,
     tier: 3,
+    family: 'sqgrow',
     pair: 'square',
     code: `while (x < 100) {
   x := x * x
@@ -406,6 +439,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 227,
     tier: 3,
+    family: 'stride',
     pair: 'stride',
     code: `while (s < t) {
   s := s + d
@@ -422,6 +456,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 228,
     tier: 3,
+    family: 'stride',
     pair: 'stride',
     code: `while (s < t) {
   s := s + d
@@ -438,6 +473,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 229,
     tier: 3,
+    family: 'chase',
     pair: 'chase',
     code: `while (x < y) {
   x := x + 2
@@ -455,6 +491,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 230,
     tier: 3,
+    family: 'chase',
     pair: 'chase',
     code: `while (x < y) {
   x := x + 1
@@ -472,6 +509,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 231,
     tier: 3,
+    family: 'andor',
     pair: 'andor',
     code: `while (x > 0 && y > 0) {
   x := x - 1
@@ -489,6 +527,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 232,
     tier: 3,
+    family: 'andor',
     pair: 'andor',
     code: `while (x > 0 || y > 0) {
   x := x - 1
@@ -506,6 +545,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 233,
     tier: 3,
+    family: 'reset',
     pair: 'reset',
     code: `while (x != 3) {
   if (x > 3) { x := x - 1 }
@@ -520,6 +560,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 234,
     tier: 3,
+    family: 'reset',
     pair: 'reset',
     code: `while (x != 3) {
   if (x > 3) { x := x - 1 }
@@ -534,6 +575,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 235,
     tier: 3,
+    family: 'mirror',
     pair: 'mirror',
     code: `while (x < 10) {
   x := 10 - x
@@ -547,6 +589,7 @@ const DEFS: RushCardDef[] = [
   {
     id: 236,
     tier: 3,
+    family: 'mirror',
     pair: 'mirror',
     code: `while (x < 10) {
   x := 20 - x
@@ -559,10 +602,10 @@ const DEFS: RushCardDef[] = [
   },
 ];
 
-function compileCard(def: RushCardDef, n: number): RushCard {
+function compileCard(def: RushCardDef): RushCard {
   const level = compileLevel({
     id: def.id,
-    title: { ko: `러시 카드 ${n}`, en: `Rush card ${n}` },
+    title: { ko: `러시 카드 ${def.id}`, en: `Rush card ${def.id}` },
     code: def.code,
     inputs: def.inputs,
     start: def.start,
@@ -571,13 +614,22 @@ function compileCard(def: RushCardDef, n: number): RushCard {
     kind: def.verdict,
     samples: def.samples,
   });
-  return { ...level, tier: def.tier, pair: def.pair, verdict: def.verdict, why: def.why };
+  return { ...level, tier: def.tier, family: def.family, pair: def.pair, verdict: def.verdict, why: def.why };
 }
 
-export const RUSH_CARDS: RushCard[] = DEFS.map((d, i) => compileCard(d, i + 1));
+/** Every card: the hand-written ones, then the generated bank. */
+export const RUSH_DEFS: RushCardDef[] = [...HAND_DEFS, ...RUSH_BANK];
+
+export const RUSH_CARDS: RushCard[] = RUSH_DEFS.map(compileCard);
+
+const BY_ID = new Map(RUSH_CARDS.map((c) => [c.id, c]));
 
 export function rushCardById(id: number): RushCard {
-  const c = RUSH_CARDS.find((x) => x.id === id);
+  const c = BY_ID.get(id);
   if (!c) throw new Error(`no rush card ${id}`);
   return c;
+}
+
+export function hasRushCard(id: number): boolean {
+  return BY_ID.has(id);
 }

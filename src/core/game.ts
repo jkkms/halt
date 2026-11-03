@@ -1,4 +1,4 @@
-// Game rules on top of the judge and the simulator: parsing answers, verdicts, attempts, stars, daily puzzle.
+// Game rules on top of the judge and the simulator: parsing answers, verdicts, attempts, stars.
 // Pure apart from the judge, so the same code runs in the browser and in `npm test`.
 
 import {
@@ -200,7 +200,7 @@ export function isFailure(o: Outcome): boolean {
   }
 }
 
-/** One emoji per attempt for the daily share text. */
+/** One emoji per attempt (the attempt marks of a level). */
 export function attemptMark(o: Outcome): string {
   if (o.type === 'ends' && o.result === 'refuted') {
     const failed = o.details.filter((d) => d.status === 'fail');
@@ -236,24 +236,4 @@ export function notDown(V: Expr, s: State, s2: State): boolean {
 
 export function holds(e: Expr, s: State): boolean {
   return evalBool(e, s);
-}
-
-// ------------------------------------------------------------ daily puzzle
-
-export function utcDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-/** Deterministic level of the day (FNV-1a hash of the UTC date). */
-export function dailyLevelId(key: string, count: number): number {
-  let h = 0x811c9dc5;
-  for (const ch of key) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return (h % count) + 1;
-}
-
-export function shareText(key: string, levelId: number, marks: string[], length: number | null): string {
-  return `Halt? #${key} L${levelId} ${marks.join('')}${length !== null ? ` ${length} chars` : ''}`;
 }

@@ -166,8 +166,7 @@ describe('strings', () => {
     assert.equal(ko.zeroStep, '조건이 처음부터 거짓 — 걷기 전에 끝');
     assert.match(en.zeroStep, /false from the start/);
     assert.equal(ko.menuTutorial, '튜토리얼');
-    assert.equal(ko.menuLevels, '레벨');
-    assert.equal(ko.menuDaily, '오늘의 문제');
+    assert.equal(ko.menuLevels, '증명 모드');
   });
 });
 

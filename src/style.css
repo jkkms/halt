@@ -500,6 +500,27 @@ var {
   background: #f6b259;
 }
 
+/* returning players: Rush mode leads, first and largest (11/3) */
+.menu-btn.lead {
+  flex-grow: 1.45;
+  max-width: 380px;
+  padding: 17px 22px;
+}
+
+.menu-btn.lead .menu-label {
+  font-size: 22px;
+}
+
+@media (max-width: 760px) {
+  .menu-btn.lead {
+    padding: 12px 16px;
+  }
+
+  .menu-btn.lead .menu-label {
+    font-size: 19px;
+  }
+}
+
 .menu-label {
   font-size: 18px;
   font-weight: 780;
@@ -655,11 +676,6 @@ var {
 .tag.next {
   background: var(--amber);
   color: var(--amber-ink);
-}
-
-.tag.today {
-  background: var(--dusk);
-  color: var(--amber-2);
 }
 
 /* ---------------------------------------------------------------- the stage */
@@ -2410,21 +2426,27 @@ var {
   color: var(--ink);
 }
 
-/* ---------------------------------------------------------------- rush (SPEC_rush) */
-/* One column in the middle of the dusk: the score line, the clock, the card, the two answers, then the stage that
-   runs the card once it is answered (behind a curtain until then). */
+/* ---------------------------------------------------------------- rush (SPEC_rush, SPEC_rush2) */
+/* One column in the middle of the dusk: the score line, the clock, the card (code + a big input banner), the two
+   answers, then the stage that runs the card once it is answered (behind a curtain until then). The start screen:
+   the explanation in small panels, the nickname and the buttons, then the hall of fame. */
 
 .rush-main {
-  max-width: 780px;
+  max-width: 820px;
   margin: 0 auto;
-  padding: 18px 20px 28px;
+  padding: 16px 20px 28px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+.rush-start-main {
+  max-width: 1080px;
+  gap: 14px;
+}
+
 .rush-panel {
-  padding: 26px 26px 22px;
+  padding: 22px 24px 20px;
   border-radius: 18px;
   background: rgba(20, 27, 64, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2436,46 +2458,248 @@ var {
 }
 
 .rush-title {
-  margin: 0;
-  font-size: clamp(30px, 3.4vw, 42px);
+  margin: 4px 0 0;
+  font-size: clamp(28px, 3.2vw, 40px);
   font-weight: 840;
   letter-spacing: -0.025em;
   color: var(--amber-2);
+  text-align: center;
   word-break: keep-all;
 }
 
-.rush-lead {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 550;
-  word-break: keep-all;
+/* the explanation: six short panels, three across on wide screens */
+.rush-about {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.rush-rules {
-  margin: 4px 0 6px;
-  padding: 12px 16px 12px 34px;
-  max-width: 600px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  text-align: left;
+.rush-about-item {
+  padding: 14px 16px 15px;
+  border-radius: 14px;
+  background: rgba(20, 27, 64, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--on-night-2);
   font-size: 14.5px;
   line-height: 1.6;
   word-break: keep-all;
 }
 
-.rush-rules li + li {
-  margin-top: 4px;
+.rush-about-item h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--amber-2);
+}
+
+.rush-about-item p {
+  margin: 0;
+}
+
+.rush-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.rush-steps li + li {
+  margin-top: 2px;
+}
+
+/* after the first card on this device the explanation folds into one line */
+.rush-about-box > summary {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(20, 27, 64, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--amber-2);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.rush-about-box[open] > summary {
+  margin-bottom: 10px;
+}
+
+.rush-tut-link {
+  margin: 0;
+  text-align: center;
+  font-size: 14.5px;
+}
+
+.rush-tut-link a {
+  color: var(--amber-2);
+  font-weight: 700;
+}
+
+.rush-actions {
+  gap: 14px;
 }
 
 .rush-modes {
-  max-width: 600px;
+  max-width: 620px;
 }
 
 .rush-bests {
   margin: 0;
-  font-size: 14px;
+  font-size: 14.5px;
   color: var(--on-night-2);
+}
+
+.rush-bests-off {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* the nickname */
+.rush-nick {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  font-size: 16px;
+}
+
+.rush-nick-key {
+  color: var(--on-night-2);
+}
+
+.rush-nick strong {
+  font-size: 18px;
+  color: var(--on-night);
+}
+
+.rush-nick-change,
+.rush-fame-more {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--on-night);
+}
+
+.rush-nick-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.rush-nick-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rush-nick-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.rush-nick-input {
+  width: 12.5em;
+  max-width: 60vw;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--sand-3);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.rush-nick-input:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.rush-nick-form .btn.ghost {
+  color: var(--on-night);
+}
+
+.rush-nick-msg {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--on-night-2);
+}
+
+.rush-nick-msg.warn {
+  color: var(--amber-2);
+  font-weight: 700;
+}
+
+/* the hall of fame */
+.rush-fame {
+  align-items: stretch;
+  gap: 8px;
+}
+
+.rush-fame-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 820;
+  color: var(--amber-2);
+}
+
+.rush-fame-note,
+.rush-fame-you {
+  margin: 0;
+  color: var(--on-night-2);
+  font-size: 14.5px;
+}
+
+.rush-fame-you {
+  font-weight: 700;
+  color: var(--amber-2);
+}
+
+.rush-fame-table {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rush-fame-table th {
+  padding: 4px 8px 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--on-night-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.rush-fame-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rush-fame-table .num {
+  text-align: right;
+}
+
+.rush-fame-table th:nth-child(2),
+.rush-fame-table .nick {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.rush-fame-table tr.me td {
+  background: rgba(242, 165, 65, 0.22);
+  color: var(--amber-2);
+  font-weight: 800;
+}
+
+.rush-fame-more {
+  align-self: center;
 }
 
 /* the score line */
@@ -2483,7 +2707,7 @@ var {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 18px;
+  gap: 6px 18px;
   font-size: 14.5px;
   color: var(--on-night-2);
 }
@@ -2524,7 +2748,7 @@ var {
   font-variant-numeric: tabular-nums;
 }
 
-/* the clock: a bar that empties in 15 seconds, red in the last 5 */
+/* the clock: a bar that empties in 5 seconds, red in the last 2 */
 .rush-timer-row {
   display: flex;
   align-items: center;
@@ -2534,7 +2758,7 @@ var {
 .rush-timer {
   position: relative;
   flex: 1;
-  height: 8px;
+  height: 10px;
   border-radius: 999px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.12);
@@ -2547,7 +2771,7 @@ var {
   border-radius: inherit;
   background: var(--amber);
   transition:
-    transform 0.1s linear,
+    transform 0.05s linear,
     background 0.2s ease;
 }
 
@@ -2556,26 +2780,30 @@ var {
 }
 
 .rush-timer-text {
-  min-width: 3.2em;
+  min-width: 3.4em;
   text-align: right;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 760;
   font-variant-numeric: tabular-nums;
-  color: var(--on-night-2);
+  color: var(--on-night);
 }
 
-/* the card: the code big and centred */
+/* the card: the code big and centred, then the input banner just as big */
 .rush-card {
+  --rush-code: clamp(18px, 2.3vw, 26px);
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--sand-3);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
 }
 
 .rush-code-wrap {
-  padding: 22px 16px;
+  padding: 18px 14px;
   border-radius: 12px;
   background: #221b30;
   text-align: center;
@@ -2590,21 +2818,64 @@ var {
   background: none;
   border-radius: 0;
   overflow: visible;
-  font-size: clamp(17px, 2.2vw, 25px);
-  line-height: 1.5;
+  font-size: var(--rush-code);
+  line-height: 1.45;
 }
 
-.rush-inputs {
-  margin: 10px 2px 0;
+.rush-input {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: calc(var(--rush-code) * 1.08);
+  line-height: 1.3;
+  font-weight: 800;
   text-align: center;
-  font-size: 15px;
-  color: var(--ink-2);
+  word-break: keep-all;
 }
 
-.rush-inputs code {
+.rush-input-key {
+  font-family: var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.rush-input-math {
+  font-family: var(--mono);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.rush-input-words,
+.rush-input-sep {
+  font-family: var(--sans);
+}
+
+/* a restricted input: amber, so it is noticed; any integer: neutral */
+.rush-input.restricted {
+  background: var(--amber);
+  color: var(--amber-ink);
+  box-shadow: inset 0 0 0 2px #b7701c;
+}
+
+.rush-input.any {
+  background: #e6dccb;
   color: var(--ink);
-  font-size: 15px;
-  font-weight: 650;
+  box-shadow: inset 0 0 0 2px var(--sand-3);
+}
+
+.rush-input.restricted .rush-input-key {
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--amber-ink);
+  color: var(--amber-2);
+}
+
+.rush-input.any .rush-input-key {
+  color: var(--ink-2);
 }
 
 /* the two answers */
@@ -2648,7 +2919,7 @@ var {
   border: 1px solid currentColor;
   font-size: 12px;
   font-weight: 600;
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 /* after the answer */
@@ -2659,6 +2930,7 @@ var {
   color: var(--ink);
   background: var(--good-soft);
   border: 1px solid rgba(44, 122, 86, 0.35);
+  cursor: pointer;
 }
 
 .rush-feedback.wrong {
@@ -2714,8 +2986,16 @@ var {
 
 .rush-next-row {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
   margin-top: 10px;
+}
+
+.rush-next-hint {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-2);
 }
 
 /* the next button fills up while the next card comes by itself */
@@ -2745,7 +3025,7 @@ var {
 /* the stage: the walker runs the card's first sample after the answer */
 .rush-stage-wrap {
   position: relative;
-  height: clamp(220px, 34dvh, 320px);
+  height: clamp(220px, 32dvh, 300px);
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2790,6 +3070,12 @@ var {
 }
 
 /* the end */
+.rush-end-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .rush-end:focus {
   outline: none;
 }
@@ -2802,11 +3088,22 @@ var {
   font-variant-numeric: tabular-nums;
 }
 
-.rush-bonus,
-.rush-best.new {
+.rush-best.new,
+.rush-rank {
   margin: 0;
   font-weight: 760;
   color: var(--amber-2);
+}
+
+.rush-rank.offline,
+.rush-rank.refused {
+  color: var(--on-night);
+  font-weight: 650;
+}
+
+.rush-rank .btn {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--on-night);
 }
 
 .rush-stats,
@@ -2853,6 +3150,82 @@ var {
 
 .rush-end-actions .btn.ghost {
   color: var(--on-night);
+}
+
+@media (max-width: 900px) {
+  .rush-about {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* phones: one column, the card and the answers fit the screen without scrolling */
+@media (max-width: 760px) {
+  .rush-main {
+    padding: 10px 16px 22px;
+    gap: 9px;
+  }
+
+  .rush-about {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rush-about-item {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .rush-panel {
+    padding: 18px 14px 16px;
+  }
+
+  .rush-hud {
+    gap: 4px 12px;
+    font-size: 13.5px;
+  }
+
+  .rush-score b {
+    font-size: 18px;
+  }
+
+  .rush-card {
+    /* 32 characters of code fit a 390 px phone */
+    --rush-code: clamp(15px, 4.2vw, 17px);
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .rush-code-wrap {
+    padding: 12px 8px;
+  }
+
+  .rush-input {
+    padding: 8px 10px;
+    gap: 2px 10px;
+  }
+
+  .verdict.rush-verdict {
+    min-height: 58px;
+    font-size: 17px;
+  }
+
+  .rush-verdict kbd,
+  .rush-next kbd,
+  .rush-q small {
+    display: none;
+  }
+
+  .rush-truth {
+    margin-left: 0;
+  }
+
+  .rush-stage-wrap {
+    height: 230px;
+  }
+
+  .rush-fame-table {
+    font-size: 14px;
+  }
 }
 
 /* ---------------------------------------------------------------- narrow screens */
@@ -2945,56 +3318,6 @@ var {
 
   .menu-sub {
     font-size: 12.5px;
-  }
-
-  .rush-main {
-    padding: 12px 16px 22px;
-    gap: 10px;
-  }
-
-  .rush-panel {
-    padding: 20px 16px 18px;
-  }
-
-  .rush-rules {
-    padding: 10px 12px 10px 28px;
-    font-size: 14px;
-  }
-
-  .rush-hud {
-    gap: 6px 12px;
-    font-size: 13.5px;
-  }
-
-  .rush-score b {
-    font-size: 18px;
-  }
-
-  .rush-card {
-    padding: 10px;
-  }
-
-  .rush-code-wrap {
-    padding: 16px 10px;
-  }
-
-  .verdict.rush-verdict {
-    min-height: 58px;
-    font-size: 17px;
-  }
-
-  .rush-verdict kbd,
-  .rush-next kbd,
-  .rush-q small {
-    display: none;
-  }
-
-  .rush-truth {
-    margin-left: 0;
-  }
-
-  .rush-stage-wrap {
-    height: 240px;
   }
 
   .page {
@@ -3501,3 +3824,8 @@ var {
   display: none;
 }
 
+
+/* Title screen: the loop-check bubble over the walker's head ran into the subtitle; the title shows the walk only. */
+.title-screen .l3-check {
+  display: none !important;
+}

@@ -1,9 +1,9 @@
-// Scoring, the daily puzzle, share text and the "judge could not decide" rule.
+// Scoring, dates, share text and the "judge could not decide" rule.
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { attemptMark, dailyLevelId, isFailure, proveEnds, shareText, starsFor, utcDateKey } from '../src/core/game.ts';
+import { attemptMark, isFailure, proveEnds, starsFor } from '../src/core/game.ts';
 import { Judge } from '../src/core/judge.ts';
-import { levelById, LEVELS } from '../src/core/levels.ts';
+import { levelById } from '../src/core/levels.ts';
 import { nodeJudge } from './z3-node.ts';
 
 let z: Awaited<ReturnType<typeof nodeJudge>>;
@@ -31,28 +31,6 @@ describe('stars', () => {
     assert.equal(starsFor(never, 4, null), 1);
     assert.equal(starsFor(open, 1, null), 3);
     assert.equal(starsFor(open, 3, null), 2);
-  });
-});
-
-describe('daily puzzle', () => {
-  it('is deterministic per UTC date and always a valid level', () => {
-    const seen = new Set<number>();
-    for (let d = 0; d < 400; d++) {
-      const key = utcDateKey(new Date(Date.UTC(2026, 0, 1) + d * 86400000));
-      const id = dailyLevelId(key, LEVELS.length);
-      assert.equal(id, dailyLevelId(key, LEVELS.length));
-      assert.ok(id >= 1 && id <= 18);
-      seen.add(id);
-    }
-    assert.equal(seen.size, 18, 'every level comes up');
-  });
-  it('uses the UTC date', () => {
-    assert.equal(utcDateKey(new Date('2026-11-03T23:30:00-09:00')), '2026-11-04');
-    assert.equal(utcDateKey(new Date('2026-11-03T08:30:00+09:00')), '2026-11-02');
-  });
-  it('share text matches the spec format and never contains the answer', () => {
-    assert.equal(shareText('2026-11-03', 10, ['⬇', '⬇', '✅'], 5), 'Halt? #2026-11-03 L10 ⬇⬇✅ 5 chars');
-    assert.equal(shareText('2026-11-03', 12, ['✅'], null), 'Halt? #2026-11-03 L12 ✅');
   });
 });
 

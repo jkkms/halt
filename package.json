@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "gen-cards": "node scripts/gen-rush-cards.ts",
     "serve:pages": "node scripts/serve-pages.mjs"
   },
   "dependencies": {

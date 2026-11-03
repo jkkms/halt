@@ -15,7 +15,6 @@ import {
   proveZone,
   railingAllowed,
   runNever,
-  shareText,
   starsFor,
   tuplesAllowed,
   type Detail,
@@ -90,7 +89,6 @@ function fresh(level: Level): Session {
 export class LevelScreen implements Screen {
   el: HTMLElement;
   levelId: number;
-  daily: string | null;
   private app: App;
   private level: Level;
   private ses: Session;
@@ -117,22 +115,12 @@ export class LevelScreen implements Screen {
   /** The guided tours of this screen (SPEC_guide). */
   private guide: LevelGuide;
 
-  constructor(app: App, id: number, daily: string | null) {
+  constructor(app: App, id: number) {
     this.app = app;
     this.levelId = id;
-    this.daily = daily;
     this.level = levelById(id);
     this.ses = fresh(this.level);
     this.badge = app.judgeBadge(() => this.explainJudge());
-    if (daily) {
-      const rec = app.saved.daily[daily];
-      if (rec && rec.level === id) {
-        this.ses.marks = [...rec.marks];
-        this.ses.solved = rec.solved;
-        this.ses.solvedLength = rec.length;
-        if (rec.solved) this.ses.stars = starsFor(this.level, rec.marks.length + 1, rec.length);
-      }
-    }
     app.saved.current = id;
     app.persist();
     this.el = h('div', { class: 'screen level-screen' });
@@ -145,7 +133,7 @@ export class LevelScreen implements Screen {
   private build(): void {
     const l = this.level;
     const help = h('button', { type: 'button', class: 'icon-btn help-btn', 'data-role': 'help', title: t('helpTitle'), 'aria-label': t('helpTitle'), onclick: () => this.openHelp() }, '?');
-    const title = h('span', {}, h('span', { class: 'bar-ch' }, this.daily ? t('dailyTag', { date: this.daily }) : t('levelN', { n: l.id })), ' ', l.title[lang()]);
+    const title = h('span', {}, h('span', { class: 'bar-ch' }, t('levelN', { n: l.id })), ' ', l.title[lang()]);
     const bar = this.app.bar({ back: { label: t('backLevels'), href: '#/levels' }, title, extra: [this.badge, help] });
     this.els.graph.replaceChildren(h('summary', {}, t('graph')), h('p', { class: 'chart-hint' }, t('graphHint')), this.chartSvg, this.chartLegend, this.chartNote);
     this.els.graph.addEventListener('toggle', () => this.renderChart());
@@ -167,7 +155,7 @@ export class LevelScreen implements Screen {
   /** The first visit to level 1 suggests the tutorial, unless it was read or skipped. */
   private suggestTutorial(): void {
     const saved = this.app.saved;
-    if (this.level.id !== 1 || this.daily || saved.tutorial || saved.introsShown.includes(1)) return;
+    if (this.level.id !== 1 || saved.tutorial || saved.introsShown.includes(1)) return;
     saved.introsShown.push(1);
     this.app.persist();
     openModal(t('suggestTitle'), [h('p', {}, t('suggestBody'))], [
@@ -228,7 +216,7 @@ export class LevelScreen implements Screen {
         h('span', {}, t('newIdea', { title: intro.title[lang()] })),
         h('button', { type: 'button', class: 'btn small', 'data-role': 'intro', onclick: () => this.app.openIntro(l.id, location.hash || `#/level/${l.id}`) }, t('readIntro')),
       );
-    } else if (l.id === 1 && !this.daily && this.app.saved.tutorial !== 'done') {
+    } else if (l.id === 1 && this.app.saved.tutorial !== 'done') {
       el.hidden = false;
       el.replaceChildren(h('span', { class: 'intro-badge' }, '?'), h('span', {}, t('startHere')), h('a', { class: 'btn small', href: '#/tutorial' }, t('openTutorial')));
     } else el.hidden = true;
@@ -633,25 +621,6 @@ export class LevelScreen implements Screen {
     const btns: Node[] = [];
     if (l.id < LEVELS.length) btns.push(h('a', { class: 'btn primary', 'data-role': 'next', href: `#/level/${l.id + 1}` }, `${t('next')} →`));
     btns.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => this.retry() }, t('retry')));
-    if (this.daily) {
-      const text = shareText(this.daily, l.id, [...this.ses.marks, '✅'], l.kind === 'ends' ? this.ses.solvedLength : null);
-      const status = h('span', { class: 'copy-status' });
-      btns.push(
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'btn',
-            onclick: async () => {
-              const ok = await copyText(text);
-              status.textContent = ok ? t('copied') : `${t('copyFailed')} ${text}`;
-            },
-          },
-          t('copyResult'),
-        ),
-        status,
-      );
-    }
     return h(
       'div',
       { class: 'solved' },
@@ -663,14 +632,7 @@ export class LevelScreen implements Screen {
   }
 
   private retry(): void {
-    const keep = this.ses;
     this.ses = fresh(this.level);
-    if (this.daily) {
-      this.ses.marks = keep.marks;
-      this.ses.solved = keep.solved;
-      this.ses.stars = keep.stars;
-      this.ses.solvedLength = keep.solvedLength;
-    }
     this.renderAll();
     this.renderStage();
     this.guide.kick();
@@ -969,10 +931,6 @@ export class LevelScreen implements Screen {
       app.saved.best[l.id] = Math.max(app.saved.best[l.id] ?? 0, this.ses.stars);
       sfx.solve();
     } else if (failed) sfx.fail();
-    if (this.daily && (failed || solved)) {
-      const prev = app.saved.daily[this.daily];
-      if (!prev?.solved) app.saved.daily[this.daily] = { level: l.id, marks: [...this.ses.marks], solved: this.ses.solved, length: this.ses.solvedLength };
-    }
     app.persist();
     this.soundNext = o.type !== 'parseError' && o.type !== 'nobody';
     this.renderAll();

@@ -1,0 +1,17 @@
+# halt-scores: the rush hall of fame for Halt? (SPEC_rush2 §F). A Worker with one D1 database.
+# Deploying (the author's account; run from this folder):
+#   npx wrangler@4 login
+#   npx wrangler@4 d1 create halt-scores                      # prints the database_id: paste it below
+#   npx wrangler@4 d1 execute halt-scores --remote --file=schema.sql
+#   npx wrangler@4 deploy                                     # prints https://halt-scores.<subdomain>.workers.dev
+# then set SCORES_API in src/ui/scores.ts (or VITE_SCORES_API at build time) to that address.
+# Local: npx wrangler@4 d1 execute halt-scores --local --file=schema.sql && npx wrangler@4 dev --local
+#        node smoke.ts http://127.0.0.1:8787
+name = "halt-scores"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "halt-scores"
+database_id = "42a5aef6-2e4a-46ff-b5ae-cfa40a3e8414"
