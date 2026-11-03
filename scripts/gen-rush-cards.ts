@@ -400,7 +400,7 @@ const FAMILIES: Record<string, (seed: number) => Group[]> = {
         proof: { never: { start: { [v]: w }, expect: 'cycle' } },
       };
       const r = runText(nev, { [v]: w }, v);
-      nev.why = { ko: `부호만 바뀌어서 ${n(c)}에 닿지 못해요. ${v} = ${n(w)}: ${r}`, en: `Only the sign flips, so it never reaches ${n(c)}. ${v} = ${n(w)}: ${r}` };
+      nev.why = { ko: `${v} = ${n(w)}에서 시작하면 부호만 바뀌어서 ${n(c)}에 닿지 못해요: ${r}`, en: `From ${v} = ${n(w)}, only the sign flips, so it never reaches ${n(c)}: ${r}` };
       const cards = [nev];
       if (c !== 0) {
         const v2 = v;
