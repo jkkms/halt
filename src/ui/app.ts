@@ -5,6 +5,7 @@
 //   #/levels        proof mode (level select)          #/level/7      a level
 //   #/rush          rush mode: explanation, nickname, hall of fame
 //   #/rush/play     a ranked rush run                  #/rush/practice   a practice run
+//   #/fame          the hall of fame alone (the 🏆 at the top right of the title screen)
 //   (#/daily, the old daily puzzle, and #/rush/today now lead to the title and the rush screen.)
 import type { Judge } from '../core/judge.ts';
 import { LEVELS } from '../core/levels.ts';
@@ -14,6 +15,7 @@ import { h } from './dom.ts';
 import { defaultLang, lang, setLang, t } from './i18n.ts';
 import { LevelScreen } from './level.ts';
 import { RushScreen } from './rush.ts';
+import { FameScreen } from './fame.ts';
 import { SelectScreen } from './select.ts';
 import { StageHost } from './stage.ts';
 import { load, save, type Saved } from './store.ts';
@@ -135,6 +137,7 @@ export class App {
       next = new TutorialScreen(this, { k: 'intro', level, returnTo: this.introReturn[level] ?? `#/level/${level}` }, (Number(sub) || 1) - 1);
     } else if (head === 'levels') next = new SelectScreen(this);
     else if (head === 'rush') next = new RushScreen(this, arg === 'play' || arg === 'practice' ? arg : null);
+    else if (head === 'fame') next = new FameScreen(this);
     else if (levelId !== null) {
       const id = levelId;
       const cached = this.levelCache;

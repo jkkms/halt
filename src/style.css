@@ -2745,17 +2745,18 @@ var {
 }
 
 .rush-fame-table td {
-  padding: 5px 8px;
+  padding: 7px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.rush-fame-table .num {
-  text-align: right;
+/* every cell centred, both ways (author, 11/3) */
+.rush-fame-table th,
+.rush-fame-table td {
+  text-align: center;
+  vertical-align: middle;
 }
 
-.rush-fame-table th:nth-child(2),
 .rush-fame-table .nick {
-  text-align: left;
   overflow-wrap: anywhere;
 }
 
@@ -2767,6 +2768,40 @@ var {
 
 .rush-fame-more {
   align-self: center;
+}
+
+.rush-fame-title {
+  text-align: center;
+}
+
+.fame-trophy {
+  font-size: 1.05em;
+}
+
+/* the 🏆 at the top right of the title screen, and the #/fame screen */
+.fame-btn {
+  gap: 6px;
+}
+
+.fame-btn-label {
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .fame-btn-label {
+    display: none;
+  }
+}
+
+.fame-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.fame-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
 }
 
 /* the score line */
@@ -3887,4 +3922,8 @@ var {
 /* Title screen: the loop-check bubble over the walker's head ran into the subtitle; the title shows the walk only. */
 .title-screen .l3-check {
   display: none !important;
+}
+
+.fame-page .rush-fame-title {
+  font-size: 26px;
 }
