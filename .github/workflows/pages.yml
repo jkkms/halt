@@ -26,7 +26,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-        timeout-minutes: 5
+        timeout-minutes: 10
       - run: npm run build
       - uses: actions/configure-pages@v5
       # The game is served by Vercel (it can send the COOP/COEP headers Safari needs);

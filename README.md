@@ -18,7 +18,7 @@
 
 프로그램이 맞다는 증명은 두 조각으로 나뉩니다. "끝나면 결과가 맞다"(부분 정확성)와 "반드시 끝난다"(종료)입니다. Halt?는 뒤 조각인 **종료**를 연습하는 게임입니다. 종료를 증명할 때도 불변식이 필요한 경우가 있어서, 게임을 하다 보면 불변식도 함께 찾게 됩니다.
 
-증명은 브라우저 안에서 돌아가는 SMT 풀이기 **Z3**와 실행기가 검사합니다. KAIST CS424(프로그램 논증) 수강생을 위해 만들었습니다.
+증명은 브라우저 안에서 돌아가는 SMT 풀이기 **Z3**와 실행기가 검사합니다.
 
 ### 세 가지 모드
 
@@ -262,7 +262,7 @@ MIT. [LICENSE](LICENSE)를 보세요.
 
 A proof that a program is correct has two pieces: "if it ends, the result is right" (partial correctness) and "it does end" (termination). Halt? is for practising the second piece, **termination**. Proving termination sometimes needs invariants too, so you end up finding invariants along the way.
 
-Proofs are checked by **Z3**, an SMT solver running in your browser, and by the game's simulator. The game was made for students of KAIST CS424 (Program Reasoning).
+Proofs are checked by **Z3**, an SMT solver running in your browser, and by the game's simulator.
 
 ### Three modes
 
