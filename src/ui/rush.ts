@@ -37,6 +37,7 @@ import { h } from './dom.ts';
 import { pretty, state as fmtState } from './format.ts';
 import { lang, t, type Key } from './i18n.ts';
 import { copyText } from './level.ts';
+import { fameTable, fameTitle } from './fame.ts';
 import { scores, newToken, type FameRow, type FinishResult } from './scores.ts';
 import { recordRush } from './store.ts';
 
@@ -381,31 +382,13 @@ export class RushScreen implements Screen {
   /** The hall of fame: top 20 (50 after "show more"), your row lit, your rank under it when you are further down. */
   private fameView(top: FameRow[] | null): HTMLElement {
     const f = top ? { k: 'ok' as const, rows: top } : this.fame;
-    const head = h('h2', { class: 'rush-fame-title' }, t('rushFame'));
+    const head = fameTitle();
     if (f.k === 'loading') return h('section', { class: 'rush-panel rush-fame', 'data-role': 'fame', 'data-state': 'loading' }, head, h('p', { class: 'rush-fame-note' }, t('rushFameLoading')));
     if (f.k === 'offline') return h('section', { class: 'rush-panel rush-fame', 'data-role': 'fame', 'data-state': 'offline' }, head, h('p', { class: 'rush-fame-note' }, t('rushOffline')));
     const mine = this.rec.nick ? nickKey(this.rec.nick) : null;
     const rows = f.rows.slice(0, this.fameAll ? FAME_ALL : FAME_FIRST);
     const table = rows.length
-      ? h(
-          'table',
-          { class: 'rush-fame-table' },
-          h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, t('rushColRank')), h('th', { scope: 'col' }, t('rushColNick')), h('th', { scope: 'col' }, t('rushColScore')), h('th', { scope: 'col' }, t('rushColCards')))),
-          h(
-            'tbody',
-            {},
-            ...rows.map((r) =>
-              h(
-                'tr',
-                { class: mine && nickKey(r.nick) === mine ? 'me' : '', 'data-nick': r.nick, 'data-score': r.score },
-                h('td', { class: 'num' }, String(r.rank)),
-                h('td', { class: 'nick' }, r.nick),
-                h('td', { class: 'num' }, formatScore(r.score)),
-                h('td', { class: 'num' }, String(r.cards)),
-              ),
-            ),
-          ),
-        )
+      ? fameTable(rows, this.rec.nick ?? null)
       : h('p', { class: 'rush-fame-note' }, t('rushFameEmpty'));
     const shownMine = mine !== null && rows.some((r) => nickKey(r.nick) === mine);
     const standing = this.submit.k === 'done' ? { best: this.submit.r.best, rank: this.submit.r.bestRank } : this.me;

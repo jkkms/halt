@@ -81,7 +81,8 @@ export class TitleScreen implements Screen {
         ),
       ),
     );
-    const bar = app.bar({ dark: true });
+    const fame = h('a', { class: 'icon-btn fame-btn', href: '#/fame', title: t('rushFame'), 'aria-label': t('rushFame'), 'data-role': 'fame-link' }, h('span', { 'aria-hidden': 'true' }, '🏆'), h('span', { class: 'fame-btn-label' }, t('rushFame')));
+    const bar = app.bar({ dark: true, extra: [fame] });
     bar.classList.add('title-bar');
     this.el.replaceChildren(this.stageBox, h('div', { class: 'title-shade', 'aria-hidden': 'true' }), bar, content);
   }
