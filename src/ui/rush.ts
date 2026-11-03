@@ -71,14 +71,16 @@ export function inputBanner(c: RushCard): HTMLElement {
   const any = c.start === 'true';
   const named = varsOf(c.startExpr);
   const free = c.inputs.filter((v) => !named.has(v));
-  const anyText = (vs: string[]) => `${vs.join(', ')}: ${t(vs.length > 1 ? 'rushAnyInts' : 'rushAnyInt')}`;
+  const math = (s: string) => h('span', { class: 'rush-input-math' }, s.replace(/-(\d)/g, '−$1'));
+  // "x: any integer": the variables in code type, the words in the text type
+  const anyPart = (vs: string[]) => [math(`${vs.join(', ')}:`), ' ', h('span', { class: 'rush-input-words' }, t(vs.length > 1 ? 'rushAnyInts' : 'rushAnyInt'))];
   const cond = pretty(c.startText ?? c.start).replace(/\s*&&\s*/g, ', ');
-  const value = any ? anyText(c.inputs) : free.length ? `${cond} · ${anyText(free)}` : cond;
+  const value: (Node | string)[] = any ? anyPart(c.inputs) : free.length ? [math(cond), h('span', { class: 'rush-input-sep' }, '\u2002·\u2002'), ...anyPart(free)] : [math(cond)];
   return h(
     'p',
     { class: `rush-input ${any ? 'any' : 'restricted'}`, 'data-role': 'input-banner' },
     h('span', { class: 'rush-input-key' }, t('rushInput')),
-    h('span', { class: 'rush-input-val' }, value.replace(/-(\d)/g, '−$1')),
+    h('span', { class: 'rush-input-val' }, ...value),
   );
 }
 
@@ -117,6 +119,7 @@ export class RushScreen implements Screen {
   private nickBusy = false;
   private fame: { k: 'loading' } | { k: 'ok'; rows: FameRow[] } | { k: 'offline' } = { k: 'loading' };
   private fameAll = false;
+  private aboutOpen = false;
   private me: { best: number; rank: number | null } | null = null;
   private stageBox = h('div', { class: 'rush-stage' });
   private curtainText = h('p', {});
@@ -232,21 +235,35 @@ export class RushScreen implements Screen {
         'main',
         { class: 'rush-main rush-start-main' },
         h('h1', { class: 'rush-title' }, t('rushTitle')),
-        h(
-          'div',
-          { class: 'rush-about', 'data-role': 'rush-about' },
-          about('rushAboutWhatH', h('p', {}, t('rushAboutWhat'))),
-          about('rushAboutRunH', h('ol', { class: 'rush-steps' }, ...steps)),
-          about('rushAboutRuleH', h('p', {}, t('rushAboutRule'))),
-          about('rushAboutTiersH', h('p', {}, t('rushAboutTiers'))),
-          about('rushAboutScoreH', h('p', {}, t('rushAboutScore'))),
-          about('rushAboutFameH', h('p', {}, t('rushAboutFame'))),
+        this.aboutBox(
+          h(
+            'div',
+            { class: 'rush-about', 'data-role': 'rush-about' },
+            about('rushAboutWhatH', h('p', {}, t('rushAboutWhat'))),
+            about('rushAboutRunH', h('ol', { class: 'rush-steps' }, ...steps)),
+            about('rushAboutRuleH', h('p', {}, t('rushAboutRule'))),
+            about('rushAboutTiersH', h('p', {}, t('rushAboutTiers'))),
+            about('rushAboutScoreH', h('p', {}, t('rushAboutScore'))),
+            about('rushAboutFameH', h('p', {}, t('rushAboutFame'))),
+          ),
         ),
         h('p', { class: 'rush-tut-link' }, h('a', { href: verdictPage(), 'data-role': 'rush-tutorial' }, t('rushTutorialLink'), ' →')),
         h('section', { class: 'rush-panel rush-actions' }, this.nickView(), h('nav', { class: 'menu rush-modes', 'aria-label': t('menuRush') }, play, practice), this.bestsView()),
-        this.fameView(null),
+        this.fame.k === 'offline' ? null : this.fameView(null),
       ),
     );
+  }
+
+  /**
+   * The explanation is open until this device has answered a rush card; after that it folds into one line (still
+   * before the buttons), so a returning player reaches "Start rush" without scrolling past it on a phone.
+   */
+  private aboutBox(grid: HTMLElement): HTMLElement {
+    if (!this.rec.seen.length) return grid;
+    const box = h('details', { class: 'rush-about-box', 'data-role': 'rush-about-box' }, h('summary', {}, t('rushAboutShow')), grid) as HTMLDetailsElement;
+    box.open = this.aboutOpen;
+    box.addEventListener('toggle', () => (this.aboutOpen = box.open));
+    return box;
   }
 
   private playClicked(e: Event): void {
@@ -360,7 +377,9 @@ export class RushScreen implements Screen {
     const best = Math.max(rec.best, this.me?.best ?? 0);
     if (best > 0) parts.push(t('rushMyBest', { score: formatScore(best) }) + (this.me?.rank ? ` · ${t('rushMyRank', { rank: this.me.rank })}` : ''));
     if (rec.practiceBest > 0) parts.push(t('rushPracticeBest', { score: formatScore(rec.practiceBest) }));
-    return h('p', { class: 'rush-bests', 'data-role': 'rush-bests' }, parts.length ? parts.join(' · ') : t('rushNoBest'));
+    // the board cannot be reached: the personal best only, and one quiet line saying why
+    const offline = this.fame.k === 'offline' ? h('small', { class: 'rush-bests-off', 'data-role': 'fame-offline' }, t('rushOffline')) : null;
+    return h('p', { class: 'rush-bests', 'data-role': 'rush-bests' }, parts.length ? parts.join(' · ') : t('rushNoBest'), offline);
   }
 
   /** The hall of fame: top 20 (50 after "show more"), your row lit, your rank under it when you are further down. */
@@ -516,7 +535,7 @@ export class RushScreen implements Screen {
       h('h1', { class: 'rush-title' }, ranked ? t('rushOverTitle') : t('rushPracticeOver')),
       h('p', { class: 'rush-final', 'data-role': 'final-score' }, t('rushPointsTotal', { score: formatScore(st.score) })),
       h('p', { class: 'rush-stats' }, t('rushRightCount', { n: rightCount(st) }), ' · ', t('rushBestStreak', { n: st.bestStreak })),
-      h('p', { class: `rush-best${this.newBest ? ' new' : ''}`, 'data-role': 'best' }, this.newBest ? t('rushNewBest') : t('rushBestIs', { score: formatScore(best) })),
+      ranked && this.submit.k === 'done' ? null : h('p', { class: `rush-best${this.newBest ? ' new' : ''}`, 'data-role': 'best' }, this.newBest ? t('rushNewBest') : t('rushBestIs', { score: formatScore(best) })),
     ];
     if (ranked) {
       kids.push(this.submitView());
@@ -657,7 +676,8 @@ export class RushScreen implements Screen {
   private paintTimer(): void {
     if (!this.st) return;
     const q = this.st.phase === 'question';
-    const left = q ? this.msLeft() : 0;
+    // a card whose clock has not started yet (askedAt 0) shows a full bar
+    const left = !q ? 0 : this.askedAt === 0 ? RUSH_MS : this.msLeft();
     this.timerFill.style.transform = `scaleX(${(left / RUSH_MS).toFixed(4)})`;
     this.timerBar.classList.toggle('low', q && left <= LOW_MS);
     this.timerText.textContent = q ? t('rushSecondsLeft', { n: (Math.ceil(left / 100) / 10).toFixed(1) }) : '';
@@ -703,6 +723,7 @@ export class RushScreen implements Screen {
   private next(): void {
     if (!this.st || this.st.phase !== 'feedback') return;
     this.stopTimers();
+    this.askedAt = 0;
     const st = this.st;
     this.st = nextCard(st, () => this.pick(st.cards.length + 1, st.cards));
     (document.activeElement as HTMLElement | null)?.blur?.();
@@ -721,6 +742,7 @@ export class RushScreen implements Screen {
 
   private again(): void {
     this.stopTimers();
+    this.askedAt = 0;
     this.begin();
     this.build();
     this.app.stage.mount(this.stageBox);

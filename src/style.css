@@ -2306,6 +2306,23 @@ var {
   margin-top: 2px;
 }
 
+/* after the first card on this device the explanation folds into one line */
+.rush-about-box > summary {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(20, 27, 64, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--amber-2);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.rush-about-box[open] > summary {
+  margin-bottom: 10px;
+}
+
 .rush-tut-link {
   margin: 0;
   text-align: center;
@@ -2329,6 +2346,13 @@ var {
   margin: 0;
   font-size: 14.5px;
   color: var(--on-night-2);
+}
+
+.rush-bests-off {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.85;
 }
 
 /* the nickname */
@@ -2620,9 +2644,15 @@ var {
   letter-spacing: 0.02em;
 }
 
-.rush-input-val {
+.rush-input-math {
   font-family: var(--mono);
   font-weight: 750;
+  white-space: nowrap;
+}
+
+.rush-input-words,
+.rush-input-sep {
+  font-family: var(--sans);
 }
 
 /* a restricted input: amber, so it is noticed; any integer: neutral */
@@ -2960,7 +2990,8 @@ var {
   }
 
   .rush-card {
-    --rush-code: 17px;
+    /* 32 characters of code fit a 390 px phone */
+    --rush-code: clamp(15px, 4.2vw, 17px);
     padding: 8px;
     gap: 8px;
   }
