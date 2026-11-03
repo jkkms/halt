@@ -150,8 +150,8 @@ Z3는 예시 실행뿐 아니라 반복 조건이 참인 모든 상태를 검사
 
 - 하 150장, 중 175장, 상 175장입니다. 몇 번째 카드에 어느 난이도가 나올지는 정해져 있습니다. 앞부분은 하가 많고 갈수록 중·상이 늘어납니다.
 - 같은 난이도 안에서는 그 기기에서 아직 안 본 카드 가운데 하나를 무작위로 고릅니다. 그래서 여러 번 도전해도 같은 카드를 다시 만나는 일이 적습니다.
-- 카드마다 **입력** 조건이 코드만큼 크게 적혀 있습니다. 코드가 거의 같은데 판정이 반대인 카드 짝이 224쌍입니다. 그중 50쌍은 코드가 똑같고 입력 조건만 다릅니다. 코드만 보고 고르면 틀리기 쉽습니다.
-- 36장은 직접 만들었고 464장은 `scripts/gen-rush-cards.ts`가 만들었습니다(`npm run gen-cards`). 모든 카드의 판정은 `npm test`에서 확인합니다. 끝나는 카드는 기준 남은 계단 수(필요하면 난간)가 실제 판정기(Z3)를 통과합니다. 안 끝나는 카드는 상태가 되풀이되는 시작값이나 Z3가 확인한 바닥 없는 구역이 있습니다.
+- 카드마다 **입력** 조건이 코드만큼 크게 적혀 있습니다. 코드가 거의 같은데 판정이 반대인 카드 짝이 230쌍입니다. 그중 49쌍은 코드가 똑같고 입력 조건만 다릅니다. 코드만 보고 고르면 틀리기 쉽습니다.
+- 32장은 직접 만들었고 468장은 `scripts/gen-rush-cards.ts`가 만들었습니다(`npm run gen-cards`). 모든 카드의 판정은 `npm test`에서 확인합니다. 끝나는 카드는 기준 남은 계단 수(필요하면 난간)가 실제 판정기(Z3)를 통과합니다. 안 끝나는 카드는 상태가 되풀이되는 시작값이나 Z3가 확인한 바닥 없는 구역이 있습니다.
 
 | 러시 모드 | 명예의 전당 |
 |---|---|
@@ -394,8 +394,8 @@ Short loop cards come one at a time, and for each you choose **It ends** (← or
 
 - 150 easy, 175 medium and 175 hard. Which tier comes at each position is fixed: mostly easy ones at first, more and more medium and hard ones later.
 - Within a tier, the card is picked at random among those this device has not seen yet, so repeated tries rarely meet the same card.
-- Each card shows its **Inputs** condition as large as the code. 224 pairs of cards have almost the same code but opposite verdicts, and in 50 of them the code is exactly the same and only the input condition differs. Reading only the code is a trap.
-- 36 cards are hand-made and 464 come from `scripts/gen-rush-cards.ts` (`npm run gen-cards`). `npm test` checks every card's verdict: for a card that ends, reference steps left (with a railing where needed) pass the real judge (Z3); for a card that never ends, there is a start whose run repeats a state, or a bottomless zone that Z3 accepts.
+- Each card shows its **Inputs** condition as large as the code. 230 pairs of cards have almost the same code but opposite verdicts, and in 49 of them the code is exactly the same and only the input condition differs. Reading only the code is a trap.
+- 32 cards are hand-made and 468 come from `scripts/gen-rush-cards.ts` (`npm run gen-cards`). `npm test` checks every card's verdict: for a card that ends, reference steps left (with a railing where needed) pass the real judge (Z3); for a card that never ends, there is a start whose run repeats a state, or a bottomless zone that Z3 accepts.
 
 | Rush mode | Hall of fame |
 |---|---|
